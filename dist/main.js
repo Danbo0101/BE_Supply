@@ -5,10 +5,16 @@ const config_1 = require("@nestjs/config");
 const typeorm_1 = require("typeorm");
 const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
+const path_1 = require("path");
 async function bootstrap() {
     try {
         const app = await core_1.NestFactory.create(app_module_1.AppModule);
         app.setGlobalPrefix('api/v1');
+        const uploadDir = process.env.UPLOAD_DIR ?? 'uploads';
+        const uploadPublicPath = process.env.UPLOAD_PUBLIC_PATH ?? '/uploads';
+        app.useStaticAssets((0, path_1.join)(process.cwd(), uploadDir), {
+            prefix: `${uploadPublicPath}/`,
+        });
         app.useGlobalPipes(new common_1.ValidationPipe({
             whitelist: true,
             forbidNonWhitelisted: true,

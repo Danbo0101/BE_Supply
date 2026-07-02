@@ -3,11 +3,19 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   try {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create<NestExpressApplication>(AppModule);
     app.setGlobalPrefix('api/v1');
+    const uploadDir = process.env.UPLOAD_DIR ?? 'uploads';
+    const uploadPublicPath = process.env.UPLOAD_PUBLIC_PATH ?? '/uploads';
+
+    app.useStaticAssets(join(process.cwd(), uploadDir), {
+      prefix: `${uploadPublicPath}/`,
+    });
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,

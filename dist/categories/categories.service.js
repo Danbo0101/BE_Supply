@@ -44,6 +44,71 @@ let CategoriesService = class CategoriesService {
             .replace(/\s+/g, '-')
             .replace(/-+/g, '-');
     }
+    async findAll() {
+        return this.categoryRepository.find({
+            where: {
+                isActive: true,
+            },
+            order: {
+                displayOrder: 'ASC',
+                createdAt: 'DESC',
+            },
+        });
+    }
+    async findOne(id) {
+        const category = await this.categoryRepository.findOne({
+            where: {
+                id,
+                isActive: true,
+            },
+        });
+        if (!category) {
+            throw new common_1.NotFoundException('Category not found');
+        }
+        return category;
+    }
+    async update(id, updateCategoryDto) {
+        const category = await this.categoryRepository.findOne({
+            where: { id },
+        });
+        if (!category) {
+            throw new common_1.NotFoundException('Category not found');
+        }
+        if (updateCategoryDto.name) {
+            const slug = this.createSlug(updateCategoryDto.name);
+            const existingCategory = await this.categoryRepository.findOne({
+                where: {
+                    slug,
+                    id: (0, typeorm_2.Not)(id),
+                },
+            });
+            if (existingCategory) {
+                throw new common_1.ConflictException('Category name already exists');
+            }
+            category.name = updateCategoryDto.name;
+            category.slug = slug;
+        }
+        if (updateCategoryDto.description !== undefined) {
+            category.description = updateCategoryDto.description;
+        }
+        if (updateCategoryDto.imageUrl !== undefined) {
+            category.imageUrl = updateCategoryDto.imageUrl;
+        }
+        if (updateCategoryDto.displayOrder !== undefined) {
+            category.displayOrder = updateCategoryDto.displayOrder;
+        }
+        return this.categoryRepository.save(category);
+    }
+    async updateStatus(id, updateCategoryStatusDto) {
+        const category = await this.categoryRepository.findOne({
+            where: { id },
+        });
+        if (!category) {
+            throw new common_1.NotFoundException('Category not found');
+        }
+        category.isActive = updateCategoryStatusDto.isActive;
+        return this.categoryRepository.save(category);
+    }
 };
 exports.CategoriesService = CategoriesService;
 exports.CategoriesService = CategoriesService = __decorate([
