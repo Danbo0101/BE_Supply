@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Category = void 0;
 const typeorm_1 = require("typeorm");
+const product_entity_1 = require("../../products/entities/product.entity");
 let Category = class Category {
     id;
     name;
@@ -21,6 +22,7 @@ let Category = class Category {
     isActive;
     createdAt;
     updatedAt;
+    products;
 };
 exports.Category = Category;
 __decorate([
@@ -59,6 +61,10 @@ __decorate([
     (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
     __metadata("design:type", Date)
 ], Category.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => product_entity_1.Product, (product) => product.category),
+    __metadata("design:type", Array)
+], Category.prototype, "products", void 0);
 exports.Category = Category = __decorate([
     (0, typeorm_1.Entity)('categories')
 ], Category);

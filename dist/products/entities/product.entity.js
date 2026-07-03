@@ -11,12 +11,20 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Product = void 0;
 const typeorm_1 = require("typeorm");
+const category_entity_1 = require("../../categories/entities/category.entity");
 let Product = class Product {
     id;
+    categoryId;
+    category;
+    productCode;
     name;
-    price;
+    slug;
     description;
+    price;
+    salePrice;
+    thumbnailUrl;
     isActive;
+    isFeatured;
     createdAt;
     updatedAt;
 };
@@ -26,27 +34,62 @@ __decorate([
     __metadata("design:type", String)
 ], Product.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ name: 'category_id', type: 'uuid' }),
+    __metadata("design:type", String)
+], Product.prototype, "categoryId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => category_entity_1.Category, { onDelete: 'RESTRICT' }),
+    (0, typeorm_1.JoinColumn)({ name: 'category_id' }),
+    __metadata("design:type", category_entity_1.Category)
+], Product.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'product_code', length: 50, unique: true, nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "productCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 200 }),
     __metadata("design:type", String)
 ], Product.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'int' }),
-    __metadata("design:type", Number)
-], Product.prototype, "price", void 0);
+    (0, typeorm_1.Column)({ length: 220, unique: true }),
+    __metadata("design:type", String)
+], Product.prototype, "slug", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Product.prototype, "description", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: true }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2 }),
+    __metadata("design:type", String)
+], Product.prototype, "price", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        name: 'sale_price',
+        type: 'decimal',
+        precision: 10,
+        scale: 2,
+        nullable: true,
+    }),
+    __metadata("design:type", String)
+], Product.prototype, "salePrice", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'thumbnail_url', type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], Product.prototype, "thumbnailUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_active', default: true }),
     __metadata("design:type", Boolean)
 ], Product.prototype, "isActive", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)(),
+    (0, typeorm_1.Column)({ name: 'is_featured', default: false }),
+    __metadata("design:type", Boolean)
+], Product.prototype, "isFeatured", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
 ], Product.prototype, "createdAt", void 0);
 __decorate([
-    (0, typeorm_1.UpdateDateColumn)(),
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
     __metadata("design:type", Date)
 ], Product.prototype, "updatedAt", void 0);
 exports.Product = Product = __decorate([

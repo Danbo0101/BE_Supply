@@ -1,25 +1,310 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
+import { Category } from '../categories/entities/category.entity';
+import { CreateProductDto } from './dto/create-product.dto';
 import { Product } from './entities/product.entity';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
+import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
   ) {}
 
-  async findAll() {
-    return this.productRepository.find({
+  async createForCategory(
+    categoryId: string,
+    createProductDto: CreateProductDto,
+  ) {
+    const category = await this.categoryRepository.findOne({
+      where: {
+        id: categoryId,
+        isActive: true,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    const slug = this.createSlug(createProductDto.name);
+
+    const existingSlug = await this.productRepository.findOne({
+      where: { slug },
+    });
+
+    if (existingSlug) {
+      throw new ConflictException('Product name already exists');
+    }
+
+    const productCode = await this.generateProductCode(createProductDto.name);
+
+    const product = this.productRepository.create({
+      categoryId,
+      productCode,
+      name: createProductDto.name,
+      slug,
+      description: createProductDto.description,
+      price: createProductDto.price.toFixed(2),
+      salePrice:
+        createProductDto.salePrice !== undefined
+          ? createProductDto.salePrice.toFixed(2)
+          : undefined,
+      thumbnailUrl: createProductDto.thumbnailUrl,
+      isFeatured: createProductDto.isFeatured ?? false,
+      isActive: true,
+    });
+
+    const savedProduct = await this.productRepository.save(product);
+
+    const productWithCategory = await this.productRepository.findOne({
+      where: { id: savedProduct.id },
+      relations: {
+        category: true,
+      },
+    });
+
+    if (!productWithCategory) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return this.toProductResponse(productWithCategory);
+  }
+
+  async findAllByCategory(categoryId: string) {
+    const category = await this.categoryRepository.findOne({
+      where: {
+        id: categoryId,
+        isActive: true,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    const products = await this.productRepository.find({
+      where: {
+        categoryId,
+        isActive: true,
+      },
+      relations: {
+        category: true,
+      },
       order: {
+        isFeatured: 'DESC',
         createdAt: 'DESC',
       },
     });
+
+    return products.map((product) => this.toProductResponse(product));
   }
 
-  async create(data: { name: string; price: number; description?: string }) {
-    const product = this.productRepository.create(data);
-    return this.productRepository.save(product);
+  async findOne(id: string) {
+    const product = await this.productRepository.findOne({
+      where: {
+        id,
+        isActive: true,
+        category: {
+          isActive: true,
+        },
+      },
+      relations: {
+        category: true,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return this.toProductResponse(product);
+  }
+
+  async update(id: string, updateProductDto: UpdateProductDto) {
+    const product = await this.productRepository.findOne({
+      where: { id },
+      relations: {
+        category: true,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    if (updateProductDto.name) {
+      const slug = this.createSlug(updateProductDto.name);
+
+      const existingSlug = await this.productRepository.findOne({
+        where: {
+          slug,
+          id: Not(id),
+        },
+      });
+
+      if (existingSlug) {
+        throw new ConflictException('Product name already exists');
+      }
+
+      product.name = updateProductDto.name;
+      product.slug = slug;
+    }
+
+    if (updateProductDto.description !== undefined) {
+      product.description = updateProductDto.description;
+    }
+
+    if (updateProductDto.price !== undefined) {
+      product.price = updateProductDto.price.toFixed(2);
+    }
+
+    if (updateProductDto.salePrice !== undefined) {
+      product.salePrice = updateProductDto.salePrice.toFixed(2);
+    }
+
+    if (updateProductDto.thumbnailUrl !== undefined) {
+      product.thumbnailUrl = updateProductDto.thumbnailUrl;
+    }
+
+    if (updateProductDto.isFeatured !== undefined) {
+      product.isFeatured = updateProductDto.isFeatured;
+    }
+
+    const savedProduct = await this.productRepository.save(product);
+
+    return this.toProductResponse(savedProduct);
+  }
+
+  async updateCategory(
+    id: string,
+    updateProductCategoryDto: UpdateProductCategoryDto,
+  ) {
+    const product = await this.productRepository.findOne({
+      where: { id },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const category = await this.categoryRepository.findOne({
+      where: {
+        id: updateProductCategoryDto.categoryId,
+        isActive: true,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    product.categoryId = updateProductCategoryDto.categoryId;
+
+    const savedProduct = await this.productRepository.save(product);
+
+    const productWithCategory = await this.productRepository.findOne({
+      where: { id: savedProduct.id },
+      relations: {
+        category: true,
+      },
+    });
+
+    if (!productWithCategory) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return this.toProductResponse(productWithCategory);
+  }
+
+  async updateStatus(
+    id: string,
+    updateProductStatusDto: UpdateProductStatusDto,
+  ) {
+    const product = await this.productRepository.findOne({
+      where: { id },
+      relations: {
+        category: true,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    product.isActive = updateProductStatusDto.isActive;
+
+    const savedProduct = await this.productRepository.save(product);
+
+    return this.toProductResponse(savedProduct);
+  }
+  private async generateProductCode(name: string) {
+    const firstWord = name.trim().split(/\s+/)[0] ?? 'PRODUCT';
+
+    const prefix = firstWord.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+    const safePrefix = prefix || 'PRODUCT';
+
+    const latestProduct = await this.productRepository
+      .createQueryBuilder('product')
+      .where('product.productCode LIKE :pattern', {
+        pattern: `${safePrefix}-%`,
+      })
+      .orderBy('product.productCode', 'DESC')
+      .getOne();
+
+    const latestNumber = latestProduct?.productCode
+      ? Number(latestProduct.productCode.split('-')[1])
+      : 0;
+
+    const nextNumber = latestNumber + 1;
+
+    return `${safePrefix}-${String(nextNumber).padStart(3, '0')}`;
+  }
+  private createSlug(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+  private toProductResponse(product: Product) {
+    return {
+      id: product.id,
+      categoryId: product.categoryId,
+      productCode: product.productCode,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      price: Number(product.price),
+      salePrice:
+        product.salePrice !== undefined && product.salePrice !== null
+          ? Number(product.salePrice)
+          : null,
+      thumbnailUrl: product.thumbnailUrl,
+      isActive: product.isActive,
+      isFeatured: product.isFeatured,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      category: product.category
+        ? {
+            name: product.category.name,
+            slug: product.category.slug,
+            description: product.category.description,
+            imageUrl: product.category.imageUrl,
+          }
+        : null,
+    };
   }
 }

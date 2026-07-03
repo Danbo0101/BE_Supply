@@ -1,24 +1,50 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { CreateProductDto } from './dto/create-product.dto';
 import { ProductsService } from './products.service';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
+import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 
-@Controller('products')
+@Controller()
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Get()
-  findAll() {
-    return this.productsService.findAll();
+  @Post('categories/:categoryId/products')
+  createForCategory(
+    @Param('categoryId') categoryId: string,
+    @Body() createProductDto: CreateProductDto,
+  ) {
+    return this.productsService.createForCategory(categoryId, createProductDto);
   }
 
-  @Post()
-  create(
-    @Body()
-    body: {
-      name: string;
-      price: number;
-      description?: string;
-    },
+  @Get('categories/:categoryId/products')
+  findAllByCategory(@Param('categoryId') categoryId: string) {
+    return this.productsService.findAllByCategory(categoryId);
+  }
+
+  @Get('products/:id')
+  findOne(@Param('id') id: string) {
+    return this.productsService.findOne(id);
+  }
+
+  @Patch('products/:id')
+  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+    return this.productsService.update(id, updateProductDto);
+  }
+
+  @Patch('products/:id/category')
+  updateCategory(
+    @Param('id') id: string,
+    @Body() updateProductCategoryDto: UpdateProductCategoryDto,
   ) {
-    return this.productsService.create(body);
+    return this.productsService.updateCategory(id, updateProductCategoryDto);
+  }
+
+  @Patch('products/:id/active')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() updateProductStatusDto: UpdateProductStatusDto,
+  ) {
+    return this.productsService.updateStatus(id, updateProductStatusDto);
   }
 }

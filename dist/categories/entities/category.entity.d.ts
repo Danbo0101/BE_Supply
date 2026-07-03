@@ -1,3 +1,4 @@
+import { Product } from '../../products/entities/product.entity';
 export declare class Category {
     id: string;
     name: string;
@@ -8,4 +9,5 @@ export declare class Category {
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
+    products: Product[];
 }

@@ -12,9 +12,10 @@ const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
-const products_module_1 = require("./products/products.module");
 const categories_module_1 = require("./categories/categories.module");
 const uploads_module_1 = require("./uploads/uploads.module");
+const products_module_1 = require("./products/products.module");
+const payment_settings_module_1 = require("./payment-settings/payment-settings.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -40,6 +41,7 @@ exports.AppModule = AppModule = __decorate([
             products_module_1.ProductsModule,
             categories_module_1.CategoriesModule,
             uploads_module_1.UploadsModule,
+            payment_settings_module_1.PaymentSettingsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
