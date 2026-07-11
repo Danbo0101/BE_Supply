@@ -7,6 +7,9 @@ import { CategoriesModule } from './categories/categories.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { ProductsModule } from './products/products.module';
 import { PaymentSettingsModule } from './payment-settings/payment-settings.module';
+import { CustomersModule } from './customers/customers.module';
+import { OrdersModule } from './orders/orders.module';
+import { SubcategoriesModule } from './subcategories/subcategories.module';
 
 @Module({
   imports: [
@@ -35,6 +38,12 @@ import { PaymentSettingsModule } from './payment-settings/payment-settings.modul
     UploadsModule,
 
     PaymentSettingsModule,
+
+    CustomersModule,
+
+    OrdersModule,
+
+    SubcategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

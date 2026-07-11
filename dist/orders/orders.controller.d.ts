@@ -1,0 +1,40 @@
+import { CreateOrderDto } from './dto/create-order.dto';
+import { OrdersService } from './orders.service';
+export declare class OrdersController {
+    private readonly ordersService;
+    constructor(ordersService: OrdersService);
+    create(createOrderDto: CreateOrderDto): Promise<{
+        id: string;
+        orderCode: string;
+        customer: {
+            id: string;
+            customerCode: string | undefined;
+            fullName: string;
+            email: string | undefined;
+            phone: string | undefined;
+        };
+        shippingAddress: string;
+        note: string | undefined;
+        subtotal: number;
+        shippingFee: number;
+        totalAmount: number;
+        paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
+        paymentReference: string;
+        paymentProofUrl: string | undefined;
+        status: import("./enums/order-status.enum").OrderStatus;
+        submittedAt: Date | undefined;
+        doneAt: Date | undefined;
+        createdAt: Date;
+        updatedAt: Date;
+        items: {
+            id: string;
+            productId: string | undefined;
+            productCode: string | undefined;
+            productName: string;
+            productThumbnailUrl: string | undefined;
+            quantity: number;
+            unitPrice: number;
+            totalPrice: number;
+        }[];
+    }>;
+}

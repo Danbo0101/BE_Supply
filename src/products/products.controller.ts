@@ -1,25 +1,28 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ProductsService } from './products.service';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
+import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductsService } from './products.service';
 
 @Controller()
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Post('categories/:categoryId/products')
-  createForCategory(
-    @Param('categoryId') categoryId: string,
+  @Post('subcategories/:subcategoryId/products')
+  createForSubcategory(
+    @Param('subcategoryId') subcategoryId: string,
     @Body() createProductDto: CreateProductDto,
   ) {
-    return this.productsService.createForCategory(categoryId, createProductDto);
+    return this.productsService.createForSubcategory(
+      subcategoryId,
+      createProductDto,
+    );
   }
 
-  @Get('categories/:categoryId/products')
-  findAllByCategory(@Param('categoryId') categoryId: string) {
-    return this.productsService.findAllByCategory(categoryId);
+  @Get('subcategories/:subcategoryId/products')
+  findAllBySubcategory(@Param('subcategoryId') subcategoryId: string) {
+    return this.productsService.findAllBySubcategory(subcategoryId);
   }
 
   @Get('products/:id')
@@ -32,12 +35,15 @@ export class ProductsController {
     return this.productsService.update(id, updateProductDto);
   }
 
-  @Patch('products/:id/category')
-  updateCategory(
+  @Patch('products/:id/subcategory')
+  updateSubcategory(
     @Param('id') id: string,
-    @Body() updateProductCategoryDto: UpdateProductCategoryDto,
+    @Body() updateProductSubcategoryDto: UpdateProductSubcategoryDto,
   ) {
-    return this.productsService.updateCategory(id, updateProductCategoryDto);
+    return this.productsService.updateSubcategory(
+      id,
+      updateProductSubcategoryDto,
+    );
   }
 
   @Patch('products/:id/active')

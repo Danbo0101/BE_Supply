@@ -2,16 +2,28 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Subcategory } from '../../subcategories/entities/subcategory.entity';
+import { Category } from '../../categories/entities/category.entity';
+import { Product } from '../../products/entities/product.entity';
 
-@Entity('categories')
-export class Category {
+@Entity('subcategories')
+export class Subcategory {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({ name: 'category_id', type: 'uuid' })
+  categoryId!: string;
+
+  @ManyToOne(() => Category, (category) => category.subcategories, {
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'category_id' })
+  category!: Category;
 
   @Column({ length: 150 })
   name!: string;
@@ -31,8 +43,8 @@ export class Category {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
-  @OneToMany(() => Subcategory, (subcategory) => subcategory.category)
-  subcategories!: Subcategory[];
+  @OneToMany(() => Product, (product) => product.subcategory)
+  products!: Product[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

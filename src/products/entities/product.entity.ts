@@ -7,19 +7,21 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Category } from '../../categories/entities/category.entity';
+import { Subcategory } from '../../subcategories/entities/subcategory.entity';
 
 @Entity('products')
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'category_id', type: 'uuid' })
-  categoryId!: string;
+  @Column({ name: 'subcategory_id', type: 'uuid' })
+  subcategoryId!: string;
 
-  @ManyToOne(() => Category, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'category_id' })
-  category!: Category;
+  @ManyToOne(() => Subcategory, (subcategory) => subcategory.products, {
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'subcategory_id' })
+  subcategory!: Subcategory;
 
   @Column({ name: 'product_code', length: 50, unique: true, nullable: true })
   productCode?: string;
