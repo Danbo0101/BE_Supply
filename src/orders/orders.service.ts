@@ -64,6 +64,8 @@ export class OrdersService {
         createOrderDto.shippingAddress,
     });
 
+    const normalizedPhone = this.normalizePhone(customer.phone);
+
     const products = await this.productRepository.find({
       where: {
         id: In(productIds),
@@ -113,7 +115,7 @@ export class OrdersService {
       orderCode,
       customerName: customer.fullName,
       customerEmail: customer.email,
-      customerPhone: customer.phone,
+      customerPhone: normalizedPhone,
       shippingAddress: createOrderDto.shippingAddress,
       note: createOrderDto.note,
       subtotal: subtotal.toFixed(2),
@@ -154,6 +156,26 @@ export class OrdersService {
     await this.orderItemRepository.save(orderItems);
 
     return this.findOne(savedOrder.id);
+  }
+  async lookup(orderCode: string, phone: string) {
+    const normalizedPhone = this.normalizePhone(phone);
+
+    const order = await this.orderRepository.findOne({
+      where: {
+        orderCode,
+        customerPhone: normalizedPhone,
+      },
+      relations: {
+        customer: true,
+        items: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return this.toOrderResponse(order);
   }
 
   async findOne(id: string) {
@@ -233,25 +255,6 @@ export class OrdersService {
     return this.findOne(savedOrder.id);
   }
 
-  async lookup(orderCode: string, phone: string) {
-    const order = await this.orderRepository.findOne({
-      where: {
-        orderCode,
-        customerPhone: phone,
-      },
-      relations: {
-        customer: true,
-        items: true,
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    return this.toOrderResponse(order);
-  }
-
   private async generateOrderCode() {
     const latestOrder = await this.orderRepository
       .createQueryBuilder('order')
@@ -305,5 +308,13 @@ export class OrdersService {
         totalPrice: Number(item.totalPrice),
       })),
     };
+  }
+
+  private normalizePhone(phone?: string) {
+    if (!phone) {
+      return phone;
+    }
+
+    return phone.replace(/\D/g, '');
   }
 }

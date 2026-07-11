@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PaymentSettingsController = void 0;
 const common_1 = require("@nestjs/common");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const update_payment_setting_dto_1 = require("./dto/update-payment-setting.dto");
 const create_payment_setting_dto_1 = require("./dto/create-payment-setting.dto");
 const payment_settings_service_1 = require("./payment-settings.service");
@@ -42,6 +43,7 @@ let PaymentSettingsController = class PaymentSettingsController {
 exports.PaymentSettingsController = PaymentSettingsController;
 __decorate([
     (0, common_1.Post)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_payment_setting_dto_1.CreatePaymentSettingDto]),
@@ -62,6 +64,7 @@ __decorate([
 ], PaymentSettingsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -70,6 +73,7 @@ __decorate([
 ], PaymentSettingsController.prototype, "update", null);
 __decorate([
     (0, common_1.Patch)(':id/active'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),

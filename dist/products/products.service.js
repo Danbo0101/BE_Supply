@@ -16,25 +16,18 @@ exports.ProductsService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
-const category_entity_1 = require("../categories/entities/category.entity");
+const subcategory_entity_1 = require("../subcategories/entities/subcategory.entity");
 const product_entity_1 = require("./entities/product.entity");
 let ProductsService = class ProductsService {
     productRepository;
-    categoryRepository;
-    constructor(productRepository, categoryRepository) {
+    subcategoryRepository;
+    constructor(productRepository, subcategoryRepository) {
         this.productRepository = productRepository;
-        this.categoryRepository = categoryRepository;
+        this.subcategoryRepository = subcategoryRepository;
     }
-    async createForCategory(categoryId, createProductDto) {
-        const category = await this.categoryRepository.findOne({
-            where: {
-                id: categoryId,
-                isActive: true,
-            },
-        });
-        if (!category) {
-            throw new common_1.NotFoundException('Category not found');
-        }
+    async createForSubcategory(subcategoryId, createProductDto) {
+        const subcategory = await this.findActiveSubcategory(subcategoryId);
+        this.validateSalePrice(createProductDto.price, createProductDto.salePrice);
         const slug = this.createSlug(createProductDto.name);
         const existingSlug = await this.productRepository.findOne({
             where: { slug },
@@ -44,7 +37,7 @@ let ProductsService = class ProductsService {
         }
         const productCode = await this.generateProductCode(createProductDto.name);
         const product = this.productRepository.create({
-            categoryId,
+            subcategoryId: subcategory.id,
             productCode,
             name: createProductDto.name,
             slug,
@@ -58,40 +51,63 @@ let ProductsService = class ProductsService {
             isActive: true,
         });
         const savedProduct = await this.productRepository.save(product);
-        const productWithCategory = await this.productRepository.findOne({
-            where: { id: savedProduct.id },
-            relations: {
-                category: true,
-            },
-        });
-        if (!productWithCategory) {
-            throw new common_1.NotFoundException('Product not found');
-        }
-        return this.toProductResponse(productWithCategory);
+        return this.findOne(savedProduct.id);
     }
-    async findAllByCategory(categoryId) {
-        const category = await this.categoryRepository.findOne({
-            where: {
-                id: categoryId,
-                isActive: true,
-            },
-        });
-        if (!category) {
-            throw new common_1.NotFoundException('Category not found');
+    async findAllBySubcategory(subcategoryId, sort = 'featured', minPrice, maxPrice) {
+        await this.findActiveSubcategory(subcategoryId);
+        const queryBuilder = this.productRepository
+            .createQueryBuilder('product')
+            .innerJoinAndSelect('product.subcategory', 'subcategory')
+            .innerJoinAndSelect('subcategory.category', 'category')
+            .where('product.subcategoryId = :subcategoryId', { subcategoryId })
+            .andWhere('product.isActive = true')
+            .andWhere('subcategory.isActive = true')
+            .andWhere('category.isActive = true');
+        const parsedMinPrice = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : undefined;
+        const parsedMaxPrice = maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : undefined;
+        if (parsedMinPrice !== undefined &&
+            (Number.isNaN(parsedMinPrice) || parsedMinPrice < 0)) {
+            throw new common_1.BadRequestException('minPrice must be a valid number');
         }
-        const products = await this.productRepository.find({
-            where: {
-                categoryId,
-                isActive: true,
-            },
-            relations: {
-                category: true,
-            },
-            order: {
-                isFeatured: 'DESC',
-                createdAt: 'DESC',
-            },
-        });
+        if (parsedMaxPrice !== undefined &&
+            (Number.isNaN(parsedMaxPrice) || parsedMaxPrice < 0)) {
+            throw new common_1.BadRequestException('maxPrice must be a valid number');
+        }
+        if (parsedMinPrice !== undefined &&
+            parsedMaxPrice !== undefined &&
+            parsedMinPrice > parsedMaxPrice) {
+            throw new common_1.BadRequestException('minPrice must be less than or equal to maxPrice');
+        }
+        if (parsedMinPrice !== undefined) {
+            queryBuilder.andWhere('COALESCE(product.salePrice, product.price) >= :minPrice', { minPrice: parsedMinPrice });
+        }
+        if (parsedMaxPrice !== undefined) {
+            queryBuilder.andWhere('COALESCE(product.salePrice, product.price) <= :maxPrice', { maxPrice: parsedMaxPrice });
+        }
+        switch (sort) {
+            case 'price_asc':
+                queryBuilder.orderBy('COALESCE(product.salePrice, product.price)', 'ASC');
+                break;
+            case 'price_desc':
+                queryBuilder.orderBy('COALESCE(product.salePrice, product.price)', 'DESC');
+                break;
+            case 'name_asc':
+                queryBuilder.orderBy('product.name', 'ASC');
+                break;
+            case 'name_desc':
+                queryBuilder.orderBy('product.name', 'DESC');
+                break;
+            case 'newest':
+                queryBuilder.orderBy('product.createdAt', 'DESC');
+                break;
+            case 'featured':
+            default:
+                queryBuilder
+                    .orderBy('product.isFeatured', 'DESC')
+                    .addOrderBy('product.createdAt', 'DESC');
+                break;
+        }
+        const products = await queryBuilder.getMany();
         return products.map((product) => this.toProductResponse(product));
     }
     async findOne(id) {
@@ -99,12 +115,17 @@ let ProductsService = class ProductsService {
             where: {
                 id,
                 isActive: true,
-                category: {
+                subcategory: {
                     isActive: true,
+                    category: {
+                        isActive: true,
+                    },
                 },
             },
             relations: {
-                category: true,
+                subcategory: {
+                    category: true,
+                },
             },
         });
         if (!product) {
@@ -116,12 +137,23 @@ let ProductsService = class ProductsService {
         const product = await this.productRepository.findOne({
             where: { id },
             relations: {
-                category: true,
+                subcategory: {
+                    category: true,
+                },
             },
         });
         if (!product) {
             throw new common_1.NotFoundException('Product not found');
         }
+        const nextPrice = updateProductDto.price !== undefined
+            ? updateProductDto.price
+            : Number(product.price);
+        const nextSalePrice = updateProductDto.salePrice !== undefined
+            ? updateProductDto.salePrice
+            : product.salePrice !== undefined && product.salePrice !== null
+                ? Number(product.salePrice)
+                : undefined;
+        this.validateSalePrice(nextPrice, nextSalePrice);
         if (updateProductDto.name) {
             const slug = this.createSlug(updateProductDto.name);
             const existingSlug = await this.productRepository.findOne({
@@ -152,50 +184,53 @@ let ProductsService = class ProductsService {
             product.isFeatured = updateProductDto.isFeatured;
         }
         const savedProduct = await this.productRepository.save(product);
-        return this.toProductResponse(savedProduct);
+        return this.findOne(savedProduct.id);
     }
-    async updateCategory(id, updateProductCategoryDto) {
+    async updateSubcategory(id, updateProductSubcategoryDto) {
         const product = await this.productRepository.findOne({
             where: { id },
         });
         if (!product) {
             throw new common_1.NotFoundException('Product not found');
         }
-        const category = await this.categoryRepository.findOne({
-            where: {
-                id: updateProductCategoryDto.categoryId,
-                isActive: true,
-            },
-        });
-        if (!category) {
-            throw new common_1.NotFoundException('Category not found');
-        }
-        product.categoryId = updateProductCategoryDto.categoryId;
+        const subcategory = await this.findActiveSubcategory(updateProductSubcategoryDto.subcategoryId);
+        product.subcategoryId = subcategory.id;
         const savedProduct = await this.productRepository.save(product);
-        const productWithCategory = await this.productRepository.findOne({
-            where: { id: savedProduct.id },
-            relations: {
-                category: true,
-            },
-        });
-        if (!productWithCategory) {
-            throw new common_1.NotFoundException('Product not found');
-        }
-        return this.toProductResponse(productWithCategory);
+        return this.findOne(savedProduct.id);
     }
     async updateStatus(id, updateProductStatusDto) {
         const product = await this.productRepository.findOne({
             where: { id },
-            relations: {
-                category: true,
-            },
         });
         if (!product) {
             throw new common_1.NotFoundException('Product not found');
         }
         product.isActive = updateProductStatusDto.isActive;
         const savedProduct = await this.productRepository.save(product);
-        return this.toProductResponse(savedProduct);
+        return this.findOne(savedProduct.id);
+    }
+    async findActiveSubcategory(id) {
+        const subcategory = await this.subcategoryRepository.findOne({
+            where: {
+                id,
+                isActive: true,
+                category: {
+                    isActive: true,
+                },
+            },
+            relations: {
+                category: true,
+            },
+        });
+        if (!subcategory) {
+            throw new common_1.NotFoundException('Subcategory not found');
+        }
+        return subcategory;
+    }
+    validateSalePrice(price, salePrice) {
+        if (salePrice !== undefined && salePrice > price) {
+            throw new common_1.BadRequestException('Sale price must be less than or equal to price');
+        }
     }
     async generateProductCode(name) {
         const firstWord = name.trim().split(/\s+/)[0] ?? 'PRODUCT';
@@ -225,7 +260,7 @@ let ProductsService = class ProductsService {
     toProductResponse(product) {
         return {
             id: product.id,
-            categoryId: product.categoryId,
+            subcategoryId: product.subcategoryId,
             productCode: product.productCode,
             name: product.name,
             slug: product.slug,
@@ -239,12 +274,18 @@ let ProductsService = class ProductsService {
             isFeatured: product.isFeatured,
             createdAt: product.createdAt,
             updatedAt: product.updatedAt,
-            category: product.category
+            subcategory: product.subcategory
                 ? {
-                    name: product.category.name,
-                    slug: product.category.slug,
-                    description: product.category.description,
-                    imageUrl: product.category.imageUrl,
+                    id: product.subcategory.id,
+                    name: product.subcategory.name,
+                    slug: product.subcategory.slug,
+                    category: product.subcategory.category
+                        ? {
+                            id: product.subcategory.category.id,
+                            name: product.subcategory.category.name,
+                            slug: product.subcategory.category.slug,
+                        }
+                        : null,
                 }
                 : null,
         };
@@ -254,7 +295,7 @@ exports.ProductsService = ProductsService;
 exports.ProductsService = ProductsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(product_entity_1.Product)),
-    __param(1, (0, typeorm_1.InjectRepository)(category_entity_1.Category)),
+    __param(1, (0, typeorm_1.InjectRepository)(subcategory_entity_1.Subcategory)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository])
 ], ProductsService);

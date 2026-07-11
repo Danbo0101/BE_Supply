@@ -45,6 +45,11 @@ let OrdersService = class OrdersService {
         if (!paymentSetting) {
             throw new common_1.BadRequestException('Payment method is not available');
         }
+        const uniqueProductIds = new Set(createOrderDto.items.map((item) => item.productId));
+        if (uniqueProductIds.size !== createOrderDto.items.length) {
+            throw new common_1.BadRequestException('Duplicate products are not allowed');
+        }
+        const productIds = [...uniqueProductIds];
         const customer = await this.customersService.findOrCreate({
             fullName: createOrderDto.customer.fullName,
             email: createOrderDto.customer.email,
@@ -52,17 +57,22 @@ let OrdersService = class OrdersService {
             defaultAddress: createOrderDto.customer.defaultAddress ??
                 createOrderDto.shippingAddress,
         });
-        const productIds = createOrderDto.items.map((item) => item.productId);
+        const normalizedPhone = this.normalizePhone(customer.phone);
         const products = await this.productRepository.find({
             where: {
                 id: (0, typeorm_2.In)(productIds),
                 isActive: true,
-                category: {
+                subcategory: {
                     isActive: true,
+                    category: {
+                        isActive: true,
+                    },
                 },
             },
             relations: {
-                category: true,
+                subcategory: {
+                    category: true,
+                },
             },
         });
         if (products.length !== productIds.length) {
@@ -87,14 +97,14 @@ let OrdersService = class OrdersService {
             orderCode,
             customerName: customer.fullName,
             customerEmail: customer.email,
-            customerPhone: customer.phone,
+            customerPhone: normalizedPhone,
             shippingAddress: createOrderDto.shippingAddress,
             note: createOrderDto.note,
             subtotal: subtotal.toFixed(2),
             shippingFee: shippingFee.toFixed(2),
             totalAmount: totalAmount.toFixed(2),
             paymentMethod: createOrderDto.paymentMethod,
-            paymentReference: createOrderDto.paymentReference,
+            paymentReference: createOrderDto.paymentReference ?? orderCode,
             paymentProofUrl: createOrderDto.paymentProofUrl,
             status: order_status_enum_1.OrderStatus.PENDING_PAYMENT,
             submittedAt: new Date(),
@@ -122,6 +132,23 @@ let OrdersService = class OrdersService {
         await this.orderItemRepository.save(orderItems);
         return this.findOne(savedOrder.id);
     }
+    async lookup(orderCode, phone) {
+        const normalizedPhone = this.normalizePhone(phone);
+        const order = await this.orderRepository.findOne({
+            where: {
+                orderCode,
+                customerPhone: normalizedPhone,
+            },
+            relations: {
+                customer: true,
+                items: true,
+            },
+        });
+        if (!order) {
+            throw new common_1.NotFoundException('Order not found');
+        }
+        return this.toOrderResponse(order);
+    }
     async findOne(id) {
         const order = await this.orderRepository.findOne({
             where: { id },
@@ -134,6 +161,49 @@ let OrdersService = class OrdersService {
             throw new common_1.NotFoundException('Order not found');
         }
         return this.toOrderResponse(order);
+    }
+    async findAll() {
+        const orders = await this.orderRepository.find({
+            relations: {
+                customer: true,
+                items: true,
+            },
+            order: {
+                createdAt: 'DESC',
+            },
+        });
+        return orders.map((order) => this.toOrderResponse(order));
+    }
+    async updatePaymentProof(id, updateOrderPaymentProofDto) {
+        const order = await this.orderRepository.findOne({
+            where: { id },
+        });
+        if (!order) {
+            throw new common_1.NotFoundException('Order not found');
+        }
+        order.paymentProofUrl = updateOrderPaymentProofDto.paymentProofUrl;
+        if (updateOrderPaymentProofDto.paymentReference !== undefined) {
+            order.paymentReference = updateOrderPaymentProofDto.paymentReference;
+        }
+        const savedOrder = await this.orderRepository.save(order);
+        return this.findOne(savedOrder.id);
+    }
+    async updateStatus(id, updateOrderStatusDto) {
+        const order = await this.orderRepository.findOne({
+            where: { id },
+        });
+        if (!order) {
+            throw new common_1.NotFoundException('Order not found');
+        }
+        order.status = updateOrderStatusDto.status;
+        if (updateOrderStatusDto.status === order_status_enum_1.OrderStatus.DONE) {
+            order.doneAt = new Date();
+        }
+        if (updateOrderStatusDto.status !== order_status_enum_1.OrderStatus.DONE) {
+            order.doneAt = undefined;
+        }
+        const savedOrder = await this.orderRepository.save(order);
+        return this.findOne(savedOrder.id);
     }
     async generateOrderCode() {
         const latestOrder = await this.orderRepository
@@ -184,6 +254,12 @@ let OrdersService = class OrdersService {
                 totalPrice: Number(item.totalPrice),
             })),
         };
+    }
+    normalizePhone(phone) {
+        if (!phone) {
+            return phone;
+        }
+        return phone.replace(/\D/g, '');
     }
 };
 exports.OrdersService = OrdersService;

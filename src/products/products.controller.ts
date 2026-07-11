@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dto';
@@ -10,6 +20,7 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post('subcategories/:subcategoryId/products')
+  @UseGuards(JwtAuthGuard)
   createForSubcategory(
     @Param('subcategoryId') subcategoryId: string,
     @Body() createProductDto: CreateProductDto,
@@ -21,8 +32,18 @@ export class ProductsController {
   }
 
   @Get('subcategories/:subcategoryId/products')
-  findAllBySubcategory(@Param('subcategoryId') subcategoryId: string) {
-    return this.productsService.findAllBySubcategory(subcategoryId);
+  findAllBySubcategory(
+    @Param('subcategoryId') subcategoryId: string,
+    @Query('sort') sort?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+  ) {
+    return this.productsService.findAllBySubcategory(
+      subcategoryId,
+      sort,
+      minPrice,
+      maxPrice,
+    );
   }
 
   @Get('products/:id')
@@ -31,11 +52,13 @@ export class ProductsController {
   }
 
   @Patch('products/:id')
+  @UseGuards(JwtAuthGuard)
   update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
     return this.productsService.update(id, updateProductDto);
   }
 
   @Patch('products/:id/subcategory')
+  @UseGuards(JwtAuthGuard)
   updateSubcategory(
     @Param('id') id: string,
     @Body() updateProductSubcategoryDto: UpdateProductSubcategoryDto,
@@ -47,6 +70,7 @@ export class ProductsController {
   }
 
   @Patch('products/:id/active')
+  @UseGuards(JwtAuthGuard)
   updateStatus(
     @Param('id') id: string,
     @Body() updateProductStatusDto: UpdateProductStatusDto,

@@ -1,8 +1,8 @@
-import { Category } from '../../categories/entities/category.entity';
+import { Subcategory } from '../../subcategories/entities/subcategory.entity';
 export declare class Product {
     id: string;
-    categoryId: string;
-    category: Category;
+    subcategoryId: string;
+    subcategory: Subcategory;
     productCode?: string;
     name: string;
     slug: string;

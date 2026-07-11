@@ -111,7 +111,7 @@ export class SubcategoriesService {
       throw new NotFoundException('Subcategory not found');
     }
 
-    return subcategory;
+    return this.toSubcategoryResponse(subcategory);
   }
 
   async update(id: string, updateSubcategoryDto: UpdateSubcategoryDto) {
@@ -198,5 +198,27 @@ export class SubcategoriesService {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
+  }
+
+  private toSubcategoryResponse(subcategory: Subcategory) {
+    return {
+      id: subcategory.id,
+      categoryId: subcategory.categoryId,
+      name: subcategory.name,
+      slug: subcategory.slug,
+      description: subcategory.description,
+      imageUrl: subcategory.imageUrl,
+      displayOrder: subcategory.displayOrder,
+      isActive: subcategory.isActive,
+      createdAt: subcategory.createdAt,
+      updatedAt: subcategory.updatedAt,
+      category: subcategory.category
+        ? {
+            id: subcategory.category.id,
+            name: subcategory.category.name,
+            slug: subcategory.category.slug,
+          }
+        : null,
+    };
   }
 }

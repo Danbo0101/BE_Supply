@@ -64,24 +64,103 @@ export class ProductsService {
     return this.findOne(savedProduct.id);
   }
 
-  async findAllBySubcategory(subcategoryId: string) {
+  async findAllBySubcategory(
+    subcategoryId: string,
+    sort = 'featured',
+    minPrice?: string,
+    maxPrice?: string,
+  ) {
     await this.findActiveSubcategory(subcategoryId);
 
-    const products = await this.productRepository.find({
-      where: {
-        subcategoryId,
-        isActive: true,
-      },
-      relations: {
-        subcategory: {
-          category: true,
-        },
-      },
-      order: {
-        isFeatured: 'DESC',
-        createdAt: 'DESC',
-      },
-    });
+    const queryBuilder = this.productRepository
+      .createQueryBuilder('product')
+      .innerJoinAndSelect('product.subcategory', 'subcategory')
+      .innerJoinAndSelect('subcategory.category', 'category')
+      .where('product.subcategoryId = :subcategoryId', { subcategoryId })
+      .andWhere('product.isActive = true')
+      .andWhere('subcategory.isActive = true')
+      .andWhere('category.isActive = true');
+
+    const parsedMinPrice =
+      minPrice !== undefined && minPrice !== '' ? Number(minPrice) : undefined;
+
+    const parsedMaxPrice =
+      maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : undefined;
+
+    if (
+      parsedMinPrice !== undefined &&
+      (Number.isNaN(parsedMinPrice) || parsedMinPrice < 0)
+    ) {
+      throw new BadRequestException('minPrice must be a valid number');
+    }
+
+    if (
+      parsedMaxPrice !== undefined &&
+      (Number.isNaN(parsedMaxPrice) || parsedMaxPrice < 0)
+    ) {
+      throw new BadRequestException('maxPrice must be a valid number');
+    }
+
+    if (
+      parsedMinPrice !== undefined &&
+      parsedMaxPrice !== undefined &&
+      parsedMinPrice > parsedMaxPrice
+    ) {
+      throw new BadRequestException(
+        'minPrice must be less than or equal to maxPrice',
+      );
+    }
+
+    if (parsedMinPrice !== undefined) {
+      queryBuilder.andWhere(
+        'COALESCE(product.salePrice, product.price) >= :minPrice',
+        { minPrice: parsedMinPrice },
+      );
+    }
+
+    if (parsedMaxPrice !== undefined) {
+      queryBuilder.andWhere(
+        'COALESCE(product.salePrice, product.price) <= :maxPrice',
+        { maxPrice: parsedMaxPrice },
+      );
+    }
+
+    switch (sort) {
+      case 'price_asc':
+        queryBuilder.orderBy(
+          'COALESCE(product.salePrice, product.price)',
+          'ASC',
+        );
+        break;
+
+      case 'price_desc':
+        queryBuilder.orderBy(
+          'COALESCE(product.salePrice, product.price)',
+          'DESC',
+        );
+        break;
+
+      case 'name_asc':
+        queryBuilder.orderBy('product.name', 'ASC');
+        break;
+
+      case 'name_desc':
+        queryBuilder.orderBy('product.name', 'DESC');
+        break;
+
+      case 'newest':
+        queryBuilder.orderBy('product.createdAt', 'DESC');
+        break;
+
+      case 'featured':
+      default:
+        queryBuilder
+          .orderBy('product.isFeatured', 'DESC')
+          .addOrderBy('product.createdAt', 'DESC');
+        break;
+    }
+
+    const products = await queryBuilder.getMany();
 
     return products.map((product) => this.toProductResponse(product));
   }
@@ -310,8 +389,8 @@ export class ProductsService {
             id: product.subcategory.id,
             name: product.subcategory.name,
             slug: product.subcategory.slug,
-            description: product.subcategory.description,
-            imageUrl: product.subcategory.imageUrl,
+            // description: product.subcategory.description,
+            // imageUrl: product.subcategory.imageUrl,
             category: product.subcategory.category
               ? {
                   id: product.subcategory.category.id,

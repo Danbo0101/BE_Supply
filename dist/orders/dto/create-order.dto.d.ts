@@ -14,7 +14,7 @@ export declare class CreateOrderDto {
     shippingAddress: string;
     note?: string;
     paymentMethod: PaymentMethod;
-    paymentReference: string;
+    paymentReference?: string;
     paymentProofUrl?: string;
     shippingFee?: number;
     items: CreateOrderItemDto[];

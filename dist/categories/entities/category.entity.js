@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Category = void 0;
 const typeorm_1 = require("typeorm");
-const product_entity_1 = require("../../products/entities/product.entity");
+const subcategory_entity_1 = require("../../subcategories/entities/subcategory.entity");
 let Category = class Category {
     id;
     name;
@@ -20,9 +20,9 @@ let Category = class Category {
     imageUrl;
     displayOrder;
     isActive;
+    subcategories;
     createdAt;
     updatedAt;
-    products;
 };
 exports.Category = Category;
 __decorate([
@@ -54,6 +54,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Category.prototype, "isActive", void 0);
 __decorate([
+    (0, typeorm_1.OneToMany)(() => subcategory_entity_1.Subcategory, (subcategory) => subcategory.category),
+    __metadata("design:type", Array)
+], Category.prototype, "subcategories", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
 ], Category.prototype, "createdAt", void 0);
@@ -61,10 +65,6 @@ __decorate([
     (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
     __metadata("design:type", Date)
 ], Category.prototype, "updatedAt", void 0);
-__decorate([
-    (0, typeorm_1.OneToMany)(() => product_entity_1.Product, (product) => product.category),
-    __metadata("design:type", Array)
-], Category.prototype, "products", void 0);
 exports.Category = Category = __decorate([
     (0, typeorm_1.Entity)('categories')
 ], Category);

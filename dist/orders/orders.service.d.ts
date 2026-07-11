@@ -6,6 +6,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderItem } from './entities/order-item.entity';
 import { Order } from './entities/order.entity';
 import { OrderStatus } from './enums/order-status.enum';
+import { UpdateOrderPaymentProofDto } from './dto/update-order-payment-proof.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 export declare class OrdersService {
     private readonly orderRepository;
     private readonly orderItemRepository;
@@ -14,6 +16,40 @@ export declare class OrdersService {
     private readonly customersService;
     constructor(orderRepository: Repository<Order>, orderItemRepository: Repository<OrderItem>, productRepository: Repository<Product>, paymentSettingRepository: Repository<PaymentSetting>, customersService: CustomersService);
     create(createOrderDto: CreateOrderDto): Promise<{
+        id: string;
+        orderCode: string;
+        customer: {
+            id: string;
+            customerCode: string | undefined;
+            fullName: string;
+            email: string | undefined;
+            phone: string | undefined;
+        };
+        shippingAddress: string;
+        note: string | undefined;
+        subtotal: number;
+        shippingFee: number;
+        totalAmount: number;
+        paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
+        paymentReference: string;
+        paymentProofUrl: string | undefined;
+        status: OrderStatus;
+        submittedAt: Date | undefined;
+        doneAt: Date | undefined;
+        createdAt: Date;
+        updatedAt: Date;
+        items: {
+            id: string;
+            productId: string | undefined;
+            productCode: string | undefined;
+            productName: string;
+            productThumbnailUrl: string | undefined;
+            quantity: number;
+            unitPrice: number;
+            totalPrice: number;
+        }[];
+    }>;
+    lookup(orderCode: string, phone: string): Promise<{
         id: string;
         orderCode: string;
         customer: {
@@ -81,6 +117,109 @@ export declare class OrdersService {
             totalPrice: number;
         }[];
     }>;
+    findAll(): Promise<{
+        id: string;
+        orderCode: string;
+        customer: {
+            id: string;
+            customerCode: string | undefined;
+            fullName: string;
+            email: string | undefined;
+            phone: string | undefined;
+        };
+        shippingAddress: string;
+        note: string | undefined;
+        subtotal: number;
+        shippingFee: number;
+        totalAmount: number;
+        paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
+        paymentReference: string;
+        paymentProofUrl: string | undefined;
+        status: OrderStatus;
+        submittedAt: Date | undefined;
+        doneAt: Date | undefined;
+        createdAt: Date;
+        updatedAt: Date;
+        items: {
+            id: string;
+            productId: string | undefined;
+            productCode: string | undefined;
+            productName: string;
+            productThumbnailUrl: string | undefined;
+            quantity: number;
+            unitPrice: number;
+            totalPrice: number;
+        }[];
+    }[]>;
+    updatePaymentProof(id: string, updateOrderPaymentProofDto: UpdateOrderPaymentProofDto): Promise<{
+        id: string;
+        orderCode: string;
+        customer: {
+            id: string;
+            customerCode: string | undefined;
+            fullName: string;
+            email: string | undefined;
+            phone: string | undefined;
+        };
+        shippingAddress: string;
+        note: string | undefined;
+        subtotal: number;
+        shippingFee: number;
+        totalAmount: number;
+        paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
+        paymentReference: string;
+        paymentProofUrl: string | undefined;
+        status: OrderStatus;
+        submittedAt: Date | undefined;
+        doneAt: Date | undefined;
+        createdAt: Date;
+        updatedAt: Date;
+        items: {
+            id: string;
+            productId: string | undefined;
+            productCode: string | undefined;
+            productName: string;
+            productThumbnailUrl: string | undefined;
+            quantity: number;
+            unitPrice: number;
+            totalPrice: number;
+        }[];
+    }>;
+    updateStatus(id: string, updateOrderStatusDto: UpdateOrderStatusDto): Promise<{
+        id: string;
+        orderCode: string;
+        customer: {
+            id: string;
+            customerCode: string | undefined;
+            fullName: string;
+            email: string | undefined;
+            phone: string | undefined;
+        };
+        shippingAddress: string;
+        note: string | undefined;
+        subtotal: number;
+        shippingFee: number;
+        totalAmount: number;
+        paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
+        paymentReference: string;
+        paymentProofUrl: string | undefined;
+        status: OrderStatus;
+        submittedAt: Date | undefined;
+        doneAt: Date | undefined;
+        createdAt: Date;
+        updatedAt: Date;
+        items: {
+            id: string;
+            productId: string | undefined;
+            productCode: string | undefined;
+            productName: string;
+            productThumbnailUrl: string | undefined;
+            quantity: number;
+            unitPrice: number;
+            totalPrice: number;
+        }[];
+    }>;
     private generateOrderCode;
     private toOrderResponse;
+    private normalizePhone;
 }

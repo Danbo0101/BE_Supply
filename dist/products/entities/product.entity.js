@@ -11,11 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Product = void 0;
 const typeorm_1 = require("typeorm");
-const category_entity_1 = require("../../categories/entities/category.entity");
+const subcategory_entity_1 = require("../../subcategories/entities/subcategory.entity");
 let Product = class Product {
     id;
-    categoryId;
-    category;
+    subcategoryId;
+    subcategory;
     productCode;
     name;
     slug;
@@ -34,14 +34,16 @@ __decorate([
     __metadata("design:type", String)
 ], Product.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'category_id', type: 'uuid' }),
+    (0, typeorm_1.Column)({ name: 'subcategory_id', type: 'uuid' }),
     __metadata("design:type", String)
-], Product.prototype, "categoryId", void 0);
+], Product.prototype, "subcategoryId", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => category_entity_1.Category, { onDelete: 'RESTRICT' }),
-    (0, typeorm_1.JoinColumn)({ name: 'category_id' }),
-    __metadata("design:type", category_entity_1.Category)
-], Product.prototype, "category", void 0);
+    (0, typeorm_1.ManyToOne)(() => subcategory_entity_1.Subcategory, (subcategory) => subcategory.products, {
+        onDelete: 'RESTRICT',
+    }),
+    (0, typeorm_1.JoinColumn)({ name: 'subcategory_id' }),
+    __metadata("design:type", subcategory_entity_1.Subcategory)
+], Product.prototype, "subcategory", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'product_code', length: 50, unique: true, nullable: true }),
     __metadata("design:type", String)

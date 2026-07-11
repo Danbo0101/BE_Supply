@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
 import { UpdateSubcategoryStatusDto } from './dto/update-subcategory-status.dto';
 import { UpdateSubcategoryDto } from './dto/update-subcategory.dto';
@@ -9,6 +18,7 @@ export class SubcategoriesController {
   constructor(private readonly subcategoriesService: SubcategoriesService) {}
 
   @Post('categories/:categoryId/subcategories')
+  @UseGuards(JwtAuthGuard)
   createForCategory(
     @Param('categoryId') categoryId: string,
     @Body() createSubcategoryDto: CreateSubcategoryDto,
@@ -30,6 +40,7 @@ export class SubcategoriesController {
   }
 
   @Patch('subcategories/:id')
+  @UseGuards(JwtAuthGuard)
   update(
     @Param('id') id: string,
     @Body() updateSubcategoryDto: UpdateSubcategoryDto,
@@ -38,6 +49,7 @@ export class SubcategoriesController {
   }
 
   @Patch('subcategories/:id/active')
+  @UseGuards(JwtAuthGuard)
   updateStatus(
     @Param('id') id: string,
     @Body() updateSubcategoryStatusDto: UpdateSubcategoryStatusDto,

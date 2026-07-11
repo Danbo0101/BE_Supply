@@ -10,6 +10,9 @@ import { PaymentSettingsModule } from './payment-settings/payment-settings.modul
 import { CustomersModule } from './customers/customers.module';
 import { OrdersModule } from './orders/orders.module';
 import { SubcategoriesModule } from './subcategories/subcategories.module';
+import { SearchModule } from './search/search.module';
+import { AdminUsersModule } from './admin-users/admin-users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -44,6 +47,12 @@ import { SubcategoriesModule } from './subcategories/subcategories.module';
     OrdersModule,
 
     SubcategoriesModule,
+
+    SearchModule,
+
+    AdminUsersModule,
+
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

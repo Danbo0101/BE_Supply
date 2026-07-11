@@ -1,17 +1,17 @@
 import { Repository } from 'typeorm';
-import { Category } from '../categories/entities/category.entity';
+import { Subcategory } from '../subcategories/entities/subcategory.entity';
 import { CreateProductDto } from './dto/create-product.dto';
-import { Product } from './entities/product.entity';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
+import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { Product } from './entities/product.entity';
 export declare class ProductsService {
     private readonly productRepository;
-    private readonly categoryRepository;
-    constructor(productRepository: Repository<Product>, categoryRepository: Repository<Category>);
-    createForCategory(categoryId: string, createProductDto: CreateProductDto): Promise<{
+    private readonly subcategoryRepository;
+    constructor(productRepository: Repository<Product>, subcategoryRepository: Repository<Subcategory>);
+    createForSubcategory(subcategoryId: string, createProductDto: CreateProductDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -23,16 +23,20 @@ export declare class ProductsService {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
-    findAllByCategory(categoryId: string): Promise<{
+    findAllBySubcategory(subcategoryId: string, sort?: string, minPrice?: string, maxPrice?: string): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -44,16 +48,20 @@ export declare class ProductsService {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }[]>;
     findOne(id: string): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -65,16 +73,20 @@ export declare class ProductsService {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
     update(id: string, updateProductDto: UpdateProductDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -86,16 +98,20 @@ export declare class ProductsService {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
-    updateCategory(id: string, updateProductCategoryDto: UpdateProductCategoryDto): Promise<{
+    updateSubcategory(id: string, updateProductSubcategoryDto: UpdateProductSubcategoryDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -107,16 +123,20 @@ export declare class ProductsService {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
     updateStatus(id: string, updateProductStatusDto: UpdateProductStatusDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -128,13 +148,19 @@ export declare class ProductsService {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
+    private findActiveSubcategory;
+    private validateSalePrice;
     private generateProductCode;
     private createSlug;
     private toProductResponse;

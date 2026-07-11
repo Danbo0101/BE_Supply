@@ -18,6 +18,10 @@ const products_module_1 = require("./products/products.module");
 const payment_settings_module_1 = require("./payment-settings/payment-settings.module");
 const customers_module_1 = require("./customers/customers.module");
 const orders_module_1 = require("./orders/orders.module");
+const subcategories_module_1 = require("./subcategories/subcategories.module");
+const search_module_1 = require("./search/search.module");
+const admin_users_module_1 = require("./admin-users/admin-users.module");
+const auth_module_1 = require("./auth/auth.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -46,6 +50,10 @@ exports.AppModule = AppModule = __decorate([
             payment_settings_module_1.PaymentSettingsModule,
             customers_module_1.CustomersModule,
             orders_module_1.OrdersModule,
+            subcategories_module_1.SubcategoriesModule,
+            search_module_1.SearchModule,
+            admin_users_module_1.AdminUsersModule,
+            auth_module_1.AuthModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

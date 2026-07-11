@@ -14,21 +14,22 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductsController = void 0;
 const common_1 = require("@nestjs/common");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const create_product_dto_1 = require("./dto/create-product.dto");
-const products_service_1 = require("./products.service");
-const update_product_dto_1 = require("./dto/update-product.dto");
-const update_product_category_dto_1 = require("./dto/update-product-category.dto");
 const update_product_status_dto_1 = require("./dto/update-product-status.dto");
+const update_product_subcategory_dto_1 = require("./dto/update-product-subcategory.dto");
+const update_product_dto_1 = require("./dto/update-product.dto");
+const products_service_1 = require("./products.service");
 let ProductsController = class ProductsController {
     productsService;
     constructor(productsService) {
         this.productsService = productsService;
     }
-    createForCategory(categoryId, createProductDto) {
-        return this.productsService.createForCategory(categoryId, createProductDto);
+    createForSubcategory(subcategoryId, createProductDto) {
+        return this.productsService.createForSubcategory(subcategoryId, createProductDto);
     }
-    findAllByCategory(categoryId) {
-        return this.productsService.findAllByCategory(categoryId);
+    findAllBySubcategory(subcategoryId, sort, minPrice, maxPrice) {
+        return this.productsService.findAllBySubcategory(subcategoryId, sort, minPrice, maxPrice);
     }
     findOne(id) {
         return this.productsService.findOne(id);
@@ -36,8 +37,8 @@ let ProductsController = class ProductsController {
     update(id, updateProductDto) {
         return this.productsService.update(id, updateProductDto);
     }
-    updateCategory(id, updateProductCategoryDto) {
-        return this.productsService.updateCategory(id, updateProductCategoryDto);
+    updateSubcategory(id, updateProductSubcategoryDto) {
+        return this.productsService.updateSubcategory(id, updateProductSubcategoryDto);
     }
     updateStatus(id, updateProductStatusDto) {
         return this.productsService.updateStatus(id, updateProductStatusDto);
@@ -45,20 +46,24 @@ let ProductsController = class ProductsController {
 };
 exports.ProductsController = ProductsController;
 __decorate([
-    (0, common_1.Post)('categories/:categoryId/products'),
-    __param(0, (0, common_1.Param)('categoryId')),
+    (0, common_1.Post)('subcategories/:subcategoryId/products'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Param)('subcategoryId')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, create_product_dto_1.CreateProductDto]),
     __metadata("design:returntype", void 0)
-], ProductsController.prototype, "createForCategory", null);
+], ProductsController.prototype, "createForSubcategory", null);
 __decorate([
-    (0, common_1.Get)('categories/:categoryId/products'),
-    __param(0, (0, common_1.Param)('categoryId')),
+    (0, common_1.Get)('subcategories/:subcategoryId/products'),
+    __param(0, (0, common_1.Param)('subcategoryId')),
+    __param(1, (0, common_1.Query)('sort')),
+    __param(2, (0, common_1.Query)('minPrice')),
+    __param(3, (0, common_1.Query)('maxPrice')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", void 0)
-], ProductsController.prototype, "findAllByCategory", null);
+], ProductsController.prototype, "findAllBySubcategory", null);
 __decorate([
     (0, common_1.Get)('products/:id'),
     __param(0, (0, common_1.Param)('id')),
@@ -68,6 +73,7 @@ __decorate([
 ], ProductsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)('products/:id'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -75,15 +81,17 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ProductsController.prototype, "update", null);
 __decorate([
-    (0, common_1.Patch)('products/:id/category'),
+    (0, common_1.Patch)('products/:id/subcategory'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_product_category_dto_1.UpdateProductCategoryDto]),
+    __metadata("design:paramtypes", [String, update_product_subcategory_dto_1.UpdateProductSubcategoryDto]),
     __metadata("design:returntype", void 0)
-], ProductsController.prototype, "updateCategory", null);
+], ProductsController.prototype, "updateSubcategory", null);
 __decorate([
     (0, common_1.Patch)('products/:id/active'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),

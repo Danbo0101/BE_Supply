@@ -1,14 +1,14 @@
 import { CreateProductDto } from './dto/create-product.dto';
-import { ProductsService } from './products.service';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
+import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductsService } from './products.service';
 export declare class ProductsController {
     private readonly productsService;
     constructor(productsService: ProductsService);
-    createForCategory(categoryId: string, createProductDto: CreateProductDto): Promise<{
+    createForSubcategory(subcategoryId: string, createProductDto: CreateProductDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -20,16 +20,20 @@ export declare class ProductsController {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
-    findAllByCategory(categoryId: string): Promise<{
+    findAllBySubcategory(subcategoryId: string, sort?: string, minPrice?: string, maxPrice?: string): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -41,16 +45,20 @@ export declare class ProductsController {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }[]>;
     findOne(id: string): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -62,16 +70,20 @@ export declare class ProductsController {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
     update(id: string, updateProductDto: UpdateProductDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -83,16 +95,20 @@ export declare class ProductsController {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
-    updateCategory(id: string, updateProductCategoryDto: UpdateProductCategoryDto): Promise<{
+    updateSubcategory(id: string, updateProductSubcategoryDto: UpdateProductSubcategoryDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -104,16 +120,20 @@ export declare class ProductsController {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
     updateStatus(id: string, updateProductStatusDto: UpdateProductStatusDto): Promise<{
         id: string;
-        categoryId: string;
+        subcategoryId: string;
         productCode: string | undefined;
         name: string;
         slug: string;
@@ -125,11 +145,15 @@ export declare class ProductsController {
         isFeatured: boolean;
         createdAt: Date;
         updatedAt: Date;
-        category: {
+        subcategory: {
+            id: string;
             name: string;
             slug: string;
-            description: string | undefined;
-            imageUrl: string | undefined;
+            category: {
+                id: string;
+                name: string;
+                slug: string;
+            } | null;
         } | null;
     }>;
 }
