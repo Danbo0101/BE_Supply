@@ -66,6 +66,9 @@ export class AuthService {
   }
 
   async refresh(refreshTokenDto: RefreshTokenDto) {
+    if (!refreshTokenDto.refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
     try {
       const payload = await this.jwtService.verifyAsync<TokenPayload>(
         refreshTokenDto.refreshToken,
