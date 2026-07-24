@@ -17,7 +17,7 @@ export class CategoriesService {
     private readonly categoryRepository: Repository<Category>,
   ) {}
 
-  async create(createCategoryDto: CreateCategoryDto) {
+  async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
     const slug = this.createSlug(createCategoryDto.name);
 
     const existingCategory = await this.categoryRepository.findOne({
@@ -28,12 +28,31 @@ export class CategoriesService {
       throw new ConflictException('Category name already exists');
     }
 
+    const result = await this.categoryRepository
+      .createQueryBuilder('category')
+      .select('COALESCE(MAX(category.displayOrder), 0)', 'maxDisplayOrder')
+      .where('category.isActive = :isActive', {
+        isActive: true,
+      })
+      .getRawOne<{ maxDisplayOrder: string | number }>();
+
+    const displayOrder = Number(result?.maxDisplayOrder ?? 0) + 1;
+
     const category = this.categoryRepository.create({
       ...createCategoryDto,
       slug,
+      displayOrder,
     });
 
-    return this.categoryRepository.save(category);
+    const savedCategory = await this.categoryRepository.save(category);
+
+    console.log({
+      databaseMaximum: result?.maxDisplayOrder,
+      generatedDisplayOrder: displayOrder,
+      savedDisplayOrder: savedCategory.displayOrder,
+    });
+
+    return savedCategory;
   }
 
   private createSlug(value: string) {
