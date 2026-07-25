@@ -84,33 +84,47 @@ let CategoriesService = class CategoriesService {
     }
     async update(id, updateCategoryDto) {
         const category = await this.categoryRepository.findOne({
-            where: { id },
+            where: {
+                id,
+                isActive: true,
+            },
         });
         if (!category) {
-            throw new common_1.NotFoundException('Category not found');
+            throw new common_1.NotFoundException('Active category not found or category is inactive');
         }
-        if (updateCategoryDto.name) {
+        if (updateCategoryDto.name !== undefined) {
             const slug = this.createSlug(updateCategoryDto.name);
             const existingCategory = await this.categoryRepository.findOne({
                 where: {
-                    slug,
                     id: (0, typeorm_2.Not)(id),
+                    slug,
+                    isActive: true,
                 },
             });
             if (existingCategory) {
-                throw new common_1.ConflictException('Category name already exists');
+                throw new common_1.ConflictException('Category name already exists in active categories');
             }
             category.name = updateCategoryDto.name;
             category.slug = slug;
+        }
+        if (updateCategoryDto.displayOrder !== undefined) {
+            const existingDisplayOrder = await this.categoryRepository.findOne({
+                where: {
+                    id: (0, typeorm_2.Not)(id),
+                    displayOrder: updateCategoryDto.displayOrder,
+                    isActive: true,
+                },
+            });
+            if (existingDisplayOrder) {
+                throw new common_1.ConflictException('Display order already exists in active categories');
+            }
+            category.displayOrder = updateCategoryDto.displayOrder;
         }
         if (updateCategoryDto.description !== undefined) {
             category.description = updateCategoryDto.description;
         }
         if (updateCategoryDto.imageUrl !== undefined) {
             category.imageUrl = updateCategoryDto.imageUrl;
-        }
-        if (updateCategoryDto.displayOrder !== undefined) {
-            category.displayOrder = updateCategoryDto.displayOrder;
         }
         return this.categoryRepository.save(category);
     }

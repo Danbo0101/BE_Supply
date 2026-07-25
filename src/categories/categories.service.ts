@@ -93,29 +93,55 @@ export class CategoriesService {
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
     const category = await this.categoryRepository.findOne({
-      where: { id },
+      where: {
+        id,
+        isActive: true,
+      },
     });
 
     if (!category) {
-      throw new NotFoundException('Category not found');
+      throw new NotFoundException(
+        'Active category not found or category is inactive',
+      );
     }
 
-    if (updateCategoryDto.name) {
+    if (updateCategoryDto.name !== undefined) {
       const slug = this.createSlug(updateCategoryDto.name);
 
       const existingCategory = await this.categoryRepository.findOne({
         where: {
-          slug,
           id: Not(id),
+          slug,
+          isActive: true,
         },
       });
 
       if (existingCategory) {
-        throw new ConflictException('Category name already exists');
+        throw new ConflictException(
+          'Category name already exists in active categories',
+        );
       }
 
       category.name = updateCategoryDto.name;
       category.slug = slug;
+    }
+
+    if (updateCategoryDto.displayOrder !== undefined) {
+      const existingDisplayOrder = await this.categoryRepository.findOne({
+        where: {
+          id: Not(id),
+          displayOrder: updateCategoryDto.displayOrder,
+          isActive: true,
+        },
+      });
+
+      if (existingDisplayOrder) {
+        throw new ConflictException(
+          'Display order already exists in active categories',
+        );
+      }
+
+      category.displayOrder = updateCategoryDto.displayOrder;
     }
 
     if (updateCategoryDto.description !== undefined) {
@@ -124,10 +150,6 @@ export class CategoriesService {
 
     if (updateCategoryDto.imageUrl !== undefined) {
       category.imageUrl = updateCategoryDto.imageUrl;
-    }
-
-    if (updateCategoryDto.displayOrder !== undefined) {
-      category.displayOrder = updateCategoryDto.displayOrder;
     }
 
     return this.categoryRepository.save(category);
