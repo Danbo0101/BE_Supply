@@ -29,7 +29,7 @@ export class Product {
   @Column({ length: 200 })
   name!: string;
 
-  @Column({ length: 220, unique: true })
+  @Column({ length: 220 })
   slug!: string;
 
   @Column({ type: 'text', nullable: true })
