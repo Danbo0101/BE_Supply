@@ -1,11 +1,4 @@
-import {
-  IsBoolean,
-  IsInt,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class UpdateSubcategoryDto {
   @IsOptional()
@@ -25,8 +18,4 @@ export class UpdateSubcategoryDto {
   @IsInt()
   @Min(0)
   displayOrder?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }

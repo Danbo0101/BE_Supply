@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  ParseUUIDPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
 import { UpdateSubcategoryStatusDto } from './dto/update-subcategory-status.dto';
 import { UpdateSubcategoryDto } from './dto/update-subcategory.dto';
 import { SubcategoriesService } from './subcategories.service';
+import { MoveSubcategoryDto } from './dto/move-subcategory.dto';
 
 @Controller()
 export class SubcategoriesController {
@@ -46,6 +48,15 @@ export class SubcategoriesController {
     @Body() updateSubcategoryDto: UpdateSubcategoryDto,
   ) {
     return this.subcategoriesService.update(id, updateSubcategoryDto);
+  }
+
+  @Patch('subcategories/:id/category')
+  @UseGuards(JwtAuthGuard)
+  moveToCategory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() moveSubcategoryDto: MoveSubcategoryDto,
+  ) {
+    return this.subcategoriesService.moveToCategory(id, moveSubcategoryDto);
   }
 
   @Patch('subcategories/:id/active')

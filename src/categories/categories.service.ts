@@ -3,10 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DataSource, In } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { Category } from './entities/category.entity';
+import { Product } from '../products/entities/product.entity';
+import { Subcategory } from '../subcategories/entities/subcategory.entity';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateCategoryStatusDto } from './dto/update-category-status.dto';
 
@@ -15,6 +18,8 @@ export class CategoriesService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
@@ -159,16 +164,61 @@ export class CategoriesService {
     id: string,
     updateCategoryStatusDto: UpdateCategoryStatusDto,
   ) {
-    const category = await this.categoryRepository.findOne({
-      where: { id },
+    return this.dataSource.transaction(async (manager) => {
+      const categoryRepository = manager.getRepository(Category);
+      const subcategoryRepository = manager.getRepository(Subcategory);
+      const productRepository = manager.getRepository(Product);
+
+      const category = await categoryRepository.findOne({
+        where: { id },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      const { isActive } = updateCategoryStatusDto;
+
+      if (!isActive) {
+        const subcategories = await subcategoryRepository.find({
+          where: {
+            category: { id },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        const subcategoryIds = subcategories.map(
+          (subcategory) => subcategory.id,
+        );
+
+        if (subcategoryIds.length > 0) {
+          await productRepository.update(
+            {
+              subcategory: {
+                id: In(subcategoryIds),
+              },
+            },
+            {
+              isActive: false,
+            },
+          );
+        }
+
+        await subcategoryRepository.update(
+          {
+            category: { id },
+          },
+          {
+            isActive: false,
+          },
+        );
+      }
+
+      category.isActive = isActive;
+
+      return categoryRepository.save(category);
     });
-
-    if (!category) {
-      throw new NotFoundException('Category not found');
-    }
-
-    category.isActive = updateCategoryStatusDto.isActive;
-
-    return this.categoryRepository.save(category);
   }
 }

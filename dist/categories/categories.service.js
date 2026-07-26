@@ -14,13 +14,18 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CategoriesService = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
+const typeorm_1 = require("typeorm");
+const typeorm_2 = require("@nestjs/typeorm");
+const typeorm_3 = require("typeorm");
 const category_entity_1 = require("./entities/category.entity");
+const product_entity_1 = require("../products/entities/product.entity");
+const subcategory_entity_1 = require("../subcategories/entities/subcategory.entity");
 let CategoriesService = class CategoriesService {
     categoryRepository;
-    constructor(categoryRepository) {
+    dataSource;
+    constructor(categoryRepository, dataSource) {
         this.categoryRepository = categoryRepository;
+        this.dataSource = dataSource;
     }
     async create(createCategoryDto) {
         const slug = this.createSlug(createCategoryDto.name);
@@ -96,7 +101,7 @@ let CategoriesService = class CategoriesService {
             const slug = this.createSlug(updateCategoryDto.name);
             const existingCategory = await this.categoryRepository.findOne({
                 where: {
-                    id: (0, typeorm_2.Not)(id),
+                    id: (0, typeorm_3.Not)(id),
                     slug,
                     isActive: true,
                 },
@@ -110,7 +115,7 @@ let CategoriesService = class CategoriesService {
         if (updateCategoryDto.displayOrder !== undefined) {
             const existingDisplayOrder = await this.categoryRepository.findOne({
                 where: {
-                    id: (0, typeorm_2.Not)(id),
+                    id: (0, typeorm_3.Not)(id),
                     displayOrder: updateCategoryDto.displayOrder,
                     isActive: true,
                 },
@@ -129,20 +134,52 @@ let CategoriesService = class CategoriesService {
         return this.categoryRepository.save(category);
     }
     async updateStatus(id, updateCategoryStatusDto) {
-        const category = await this.categoryRepository.findOne({
-            where: { id },
+        return this.dataSource.transaction(async (manager) => {
+            const categoryRepository = manager.getRepository(category_entity_1.Category);
+            const subcategoryRepository = manager.getRepository(subcategory_entity_1.Subcategory);
+            const productRepository = manager.getRepository(product_entity_1.Product);
+            const category = await categoryRepository.findOne({
+                where: { id },
+            });
+            if (!category) {
+                throw new common_1.NotFoundException('Category not found');
+            }
+            const { isActive } = updateCategoryStatusDto;
+            if (!isActive) {
+                const subcategories = await subcategoryRepository.find({
+                    where: {
+                        category: { id },
+                    },
+                    select: {
+                        id: true,
+                    },
+                });
+                const subcategoryIds = subcategories.map((subcategory) => subcategory.id);
+                if (subcategoryIds.length > 0) {
+                    await productRepository.update({
+                        subcategory: {
+                            id: (0, typeorm_1.In)(subcategoryIds),
+                        },
+                    }, {
+                        isActive: false,
+                    });
+                }
+                await subcategoryRepository.update({
+                    category: { id },
+                }, {
+                    isActive: false,
+                });
+            }
+            category.isActive = isActive;
+            return categoryRepository.save(category);
         });
-        if (!category) {
-            throw new common_1.NotFoundException('Category not found');
-        }
-        category.isActive = updateCategoryStatusDto.isActive;
-        return this.categoryRepository.save(category);
     }
 };
 exports.CategoriesService = CategoriesService;
 exports.CategoriesService = CategoriesService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, typeorm_1.InjectRepository)(category_entity_1.Category)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(0, (0, typeorm_2.InjectRepository)(category_entity_1.Category)),
+    __metadata("design:paramtypes", [typeorm_3.Repository,
+        typeorm_1.DataSource])
 ], CategoriesService);
 //# sourceMappingURL=categories.service.js.map

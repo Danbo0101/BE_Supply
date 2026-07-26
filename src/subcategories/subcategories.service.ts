@@ -1,15 +1,19 @@
 import {
   ConflictException,
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { Category } from '../categories/entities/category.entity';
+import { Subcategory } from './entities/subcategory.entity';
+import { Product } from '../products/entities/product.entity';
 import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
 import { UpdateSubcategoryStatusDto } from './dto/update-subcategory-status.dto';
 import { UpdateSubcategoryDto } from './dto/update-subcategory.dto';
-import { Subcategory } from './entities/subcategory.entity';
+import { MoveSubcategoryDto } from './dto/move-subcategory.dto';
 
 @Injectable()
 export class SubcategoriesService {
@@ -19,6 +23,8 @@ export class SubcategoriesService {
 
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+
+    private readonly dataSource: DataSource,
   ) {}
 
   async createForCategory(
@@ -36,33 +42,44 @@ export class SubcategoriesService {
       throw new NotFoundException('Category not found');
     }
 
-    const slug = this.createSlug(createSubcategoryDto.name);
+    const name = createSubcategoryDto.name.trim();
+    const slug = this.createSlug(name);
 
-    const existingSlug = await this.subcategoryRepository.findOne({
-      where: { slug },
-    });
-
-    if (existingSlug) {
-      throw new ConflictException('Subcategory name already exists');
-    }
-
-    const existingNameInCategory = await this.subcategoryRepository.findOne({
+    // Slug chỉ unique trong category và giữa các bản ghi đang active
+    const existingSlugInCategory = await this.subcategoryRepository.findOne({
       where: {
         categoryId,
-        name: createSubcategoryDto.name,
+        slug,
+        isActive: true,
       },
     });
 
-    if (existingNameInCategory) {
+    if (existingSlugInCategory) {
       throw new ConflictException(
-        'Subcategory already exists in this category',
+        'Subcategory name already exists in this category',
       );
     }
 
+    // Tìm displayOrder cuối cùng trong category
+    const result = await this.subcategoryRepository
+      .createQueryBuilder('subcategory')
+      .select('MAX(subcategory.displayOrder)', 'maxDisplayOrder')
+      .where('subcategory.categoryId = :categoryId', {
+        categoryId,
+      })
+      .andWhere('subcategory.isActive = :isActive', {
+        isActive: true,
+      })
+      .getRawOne<{ maxDisplayOrder: string | null }>();
+
+    const displayOrder = Number(result?.maxDisplayOrder ?? 0) + 1;
+
     const subcategory = this.subcategoryRepository.create({
-      categoryId,
       ...createSubcategoryDto,
+      name,
+      categoryId,
       slug,
+      displayOrder,
       isActive: createSubcategoryDto.isActive ?? true,
     });
 
@@ -123,36 +140,52 @@ export class SubcategoriesService {
       throw new NotFoundException('Subcategory not found');
     }
 
-    if (updateSubcategoryDto.name) {
-      const slug = this.createSlug(updateSubcategoryDto.name);
+    // Vì isActive = false được xem là đã tắt vĩnh viễn
+    if (!subcategory.isActive) {
+      throw new BadRequestException('Inactive subcategory cannot be updated');
+    }
 
-      const existingSlug = await this.subcategoryRepository.findOne({
-        where: {
-          slug,
-          id: Not(id),
-        },
-      });
+    if (updateSubcategoryDto.name !== undefined) {
+      const name = updateSubcategoryDto.name.trim();
+      const slug = this.createSlug(name);
 
-      if (existingSlug) {
-        throw new ConflictException('Subcategory name already exists');
-      }
-
-      const existingNameInCategory = await this.subcategoryRepository.findOne({
+      // Chỉ kiểm tra slug trong cùng category
+      const existingSlugInCategory = await this.subcategoryRepository.findOne({
         where: {
           categoryId: subcategory.categoryId,
-          name: updateSubcategoryDto.name,
+          slug,
+          isActive: true,
           id: Not(id),
         },
       });
 
-      if (existingNameInCategory) {
+      if (existingSlugInCategory) {
         throw new ConflictException(
-          'Subcategory already exists in this category',
+          'Subcategory name already exists in this category',
         );
       }
 
-      subcategory.name = updateSubcategoryDto.name;
+      subcategory.name = name;
       subcategory.slug = slug;
+    }
+
+    if (updateSubcategoryDto.displayOrder !== undefined) {
+      const existingDisplayOrder = await this.subcategoryRepository.findOne({
+        where: {
+          categoryId: subcategory.categoryId,
+          displayOrder: updateSubcategoryDto.displayOrder,
+          isActive: true,
+          id: Not(id),
+        },
+      });
+
+      if (existingDisplayOrder) {
+        throw new ConflictException(
+          `Display order ${updateSubcategoryDto.displayOrder} is already used in this category`,
+        );
+      }
+
+      subcategory.displayOrder = updateSubcategoryDto.displayOrder;
     }
 
     if (updateSubcategoryDto.description !== undefined) {
@@ -163,13 +196,79 @@ export class SubcategoriesService {
       subcategory.imageUrl = updateSubcategoryDto.imageUrl;
     }
 
-    if (updateSubcategoryDto.displayOrder !== undefined) {
-      subcategory.displayOrder = updateSubcategoryDto.displayOrder;
+    return this.subcategoryRepository.save(subcategory);
+  }
+
+  async moveToCategory(
+    subcategoryId: string,
+    moveSubcategoryDto: MoveSubcategoryDto,
+  ) {
+    const { targetCategoryId } = moveSubcategoryDto;
+
+    const subcategory = await this.subcategoryRepository.findOne({
+      where: {
+        id: subcategoryId,
+      },
+    });
+
+    if (!subcategory) {
+      throw new NotFoundException('Subcategory not found');
     }
 
-    if (updateSubcategoryDto.isActive !== undefined) {
-      subcategory.isActive = updateSubcategoryDto.isActive;
+    if (!subcategory.isActive) {
+      throw new BadRequestException('Inactive subcategory cannot be moved');
     }
+
+    if (subcategory.categoryId === targetCategoryId) {
+      throw new BadRequestException(
+        'Subcategory already belongs to this category',
+      );
+    }
+
+    const targetCategory = await this.categoryRepository.findOne({
+      where: {
+        id: targetCategoryId,
+      },
+    });
+
+    if (!targetCategory) {
+      throw new NotFoundException('Target category not found');
+    }
+
+    if (!targetCategory.isActive) {
+      throw new BadRequestException(
+        'Cannot move subcategory to an inactive category',
+      );
+    }
+
+    // Kiểm tra slug đang active trong category đích
+    const duplicateSlug = await this.subcategoryRepository.findOne({
+      where: {
+        categoryId: targetCategoryId,
+        slug: subcategory.slug,
+        isActive: true,
+        id: Not(subcategory.id),
+      },
+    });
+
+    if (duplicateSlug) {
+      throw new ConflictException(
+        `Subcategory already exists in target category`,
+      );
+    }
+
+    // Lấy displayOrder lớn nhất của subcategory active
+    const maxDisplayOrder = await this.subcategoryRepository.maximum(
+      'displayOrder',
+      {
+        categoryId: targetCategoryId,
+        isActive: true,
+      },
+    );
+
+    subcategory.categoryId = targetCategoryId;
+    subcategory.category = targetCategory;
+    subcategory.displayOrder = (maxDisplayOrder ?? 0) + 1;
 
     return this.subcategoryRepository.save(subcategory);
   }
@@ -178,17 +277,38 @@ export class SubcategoriesService {
     id: string,
     updateSubcategoryStatusDto: UpdateSubcategoryStatusDto,
   ) {
-    const subcategory = await this.subcategoryRepository.findOne({
-      where: { id },
+    return this.dataSource.transaction(async (manager) => {
+      const subcategoryRepository = manager.getRepository(Subcategory);
+
+      const productRepository = manager.getRepository(Product);
+
+      const subcategory = await subcategoryRepository.findOne({
+        where: { id },
+      });
+
+      if (!subcategory) {
+        throw new NotFoundException('Subcategory not found');
+      }
+
+      const { isActive } = updateSubcategoryStatusDto;
+
+      // Khi tắt subcategory, tắt toàn bộ product bên trong
+      if (!isActive) {
+        await productRepository.update(
+          {
+            subcategoryId: id,
+          },
+          {
+            isActive: false,
+          },
+        );
+      }
+
+      // Khi bật lại chỉ bật subcategory, không bật product
+      subcategory.isActive = isActive;
+
+      return subcategoryRepository.save(subcategory);
     });
-
-    if (!subcategory) {
-      throw new NotFoundException('Subcategory not found');
-    }
-
-    subcategory.isActive = updateSubcategoryStatusDto.isActive;
-
-    return this.subcategoryRepository.save(subcategory);
   }
 
   private createSlug(value: string) {
