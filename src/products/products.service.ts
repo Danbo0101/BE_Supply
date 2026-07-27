@@ -12,6 +12,7 @@ import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class ProductsService {
@@ -31,22 +32,30 @@ export class ProductsService {
 
     this.validateSalePrice(createProductDto.price, createProductDto.salePrice);
 
-    const slug = this.createSlug(createProductDto.name);
+    const name = createProductDto.name.trim();
+    const slug = this.createSlug(name);
 
-    const existingSlug = await this.productRepository.findOne({
-      where: { slug },
+    // Chỉ kiểm tra trong cùng subcategory và product đang active
+    const existingProduct = await this.productRepository.findOne({
+      where: {
+        subcategoryId: subcategory.id,
+        slug,
+        isActive: true,
+      },
     });
 
-    if (existingSlug) {
-      throw new ConflictException('Product name already exists');
+    if (existingProduct) {
+      throw new ConflictException(
+        'Product name already exists in this subcategory',
+      );
     }
 
-    const productCode = await this.generateProductCode(createProductDto.name);
+    const productCode = this.generateProductCode();
 
     const product = this.productRepository.create({
       subcategoryId: subcategory.id,
       productCode,
-      name: createProductDto.name,
+      name,
       slug,
       description: createProductDto.description,
       price: createProductDto.price.toFixed(2),
@@ -205,6 +214,22 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    if (!product.isActive) {
+      throw new BadRequestException('Inactive product cannot be updated');
+    }
+
+    if (!product.subcategory?.isActive) {
+      throw new BadRequestException(
+        'Cannot update product in an inactive subcategory',
+      );
+    }
+
+    if (!product.subcategory.category?.isActive) {
+      throw new BadRequestException(
+        'Cannot update product in an inactive category',
+      );
+    }
+
     const nextPrice =
       updateProductDto.price !== undefined
         ? updateProductDto.price
@@ -219,22 +244,29 @@ export class ProductsService {
 
     this.validateSalePrice(nextPrice, nextSalePrice);
 
-    if (updateProductDto.name) {
-      const slug = this.createSlug(updateProductDto.name);
+    if (updateProductDto.name !== undefined) {
+      const name = updateProductDto.name.trim();
+      const slug = this.createSlug(name);
 
-      const existingSlug = await this.productRepository.findOne({
+      const existingProduct = await this.productRepository.findOne({
         where: {
+          subcategoryId: product.subcategoryId,
           slug,
+          isActive: true,
           id: Not(id),
         },
       });
 
-      if (existingSlug) {
-        throw new ConflictException('Product name already exists');
+      if (existingProduct) {
+        throw new ConflictException(
+          'Product name already exists in this subcategory',
+        );
       }
 
-      product.name = updateProductDto.name;
+      product.name = name;
       product.slug = slug;
+
+      // Không đổi productCode khi đổi tên
     }
 
     if (updateProductDto.description !== undefined) {
@@ -274,11 +306,38 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    const subcategory = await this.findActiveSubcategory(
-      updateProductSubcategoryDto.subcategoryId,
-    );
+    if (!product.isActive) {
+      throw new BadRequestException('Inactive product cannot be moved');
+    }
 
-    product.subcategoryId = subcategory.id;
+    const { subcategoryId } = updateProductSubcategoryDto;
+
+    if (product.subcategoryId === subcategoryId) {
+      throw new BadRequestException(
+        'Product already belongs to this subcategory',
+      );
+    }
+
+    // Hàm này cần bảo đảm cả subcategory và category cha đang active
+    const targetSubcategory = await this.findActiveSubcategory(subcategoryId);
+
+    // Kiểm tra product trùng tên/slug trong subcategory đích
+    const duplicateProduct = await this.productRepository.findOne({
+      where: {
+        subcategoryId: targetSubcategory.id,
+        slug: product.slug,
+        isActive: true,
+        id: Not(product.id),
+      },
+    });
+
+    if (duplicateProduct) {
+      throw new ConflictException(
+        `Product already exists in target subcategory`,
+      );
+    }
+
+    product.subcategoryId = targetSubcategory.id;
 
     const savedProduct = await this.productRepository.save(product);
 
@@ -299,9 +358,7 @@ export class ProductsService {
 
     product.isActive = updateProductStatusDto.isActive;
 
-    const savedProduct = await this.productRepository.save(product);
-
-    return this.findOne(savedProduct.id);
+    return this.productRepository.save(product);
   }
 
   private async findActiveSubcategory(id: string) {
@@ -333,28 +390,13 @@ export class ProductsService {
     }
   }
 
-  private async generateProductCode(name: string) {
-    const firstWord = name.trim().split(/\s+/)[0] ?? 'PRODUCT';
+  private generateProductCode(): string {
+    const randomSuffix = randomUUID()
+      .replace(/-/g, '')
+      .slice(0, 16)
+      .toUpperCase();
 
-    const prefix = firstWord.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-
-    const safePrefix = prefix || 'PRODUCT';
-
-    const latestProduct = await this.productRepository
-      .createQueryBuilder('product')
-      .where('product.productCode LIKE :pattern', {
-        pattern: `${safePrefix}-%`,
-      })
-      .orderBy('product.productCode', 'DESC')
-      .getOne();
-
-    const latestNumber = latestProduct?.productCode
-      ? Number(latestProduct.productCode.split('-')[1])
-      : 0;
-
-    const nextNumber = latestNumber + 1;
-
-    return `${safePrefix}-${String(nextNumber).padStart(3, '0')}`;
+    return `PRD-${randomSuffix}`;
   }
 
   private createSlug(value: string) {

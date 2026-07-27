@@ -131,29 +131,5 @@ export declare class ProductsController {
             } | null;
         } | null;
     }>;
-    updateStatus(id: string, updateProductStatusDto: UpdateProductStatusDto): Promise<{
-        id: string;
-        subcategoryId: string;
-        productCode: string | undefined;
-        name: string;
-        slug: string;
-        description: string | undefined;
-        price: number;
-        salePrice: number | null;
-        thumbnailUrl: string | undefined;
-        isActive: boolean;
-        isFeatured: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        subcategory: {
-            id: string;
-            name: string;
-            slug: string;
-            category: {
-                id: string;
-                name: string;
-                slug: string;
-            } | null;
-        } | null;
-    }>;
+    updateStatus(id: string, updateProductStatusDto: UpdateProductStatusDto): Promise<import("./entities/product.entity").Product>;
 }

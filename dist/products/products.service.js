@@ -18,6 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const subcategory_entity_1 = require("../subcategories/entities/subcategory.entity");
 const product_entity_1 = require("./entities/product.entity");
+const crypto_1 = require("crypto");
 let ProductsService = class ProductsService {
     productRepository;
     subcategoryRepository;
@@ -28,18 +29,23 @@ let ProductsService = class ProductsService {
     async createForSubcategory(subcategoryId, createProductDto) {
         const subcategory = await this.findActiveSubcategory(subcategoryId);
         this.validateSalePrice(createProductDto.price, createProductDto.salePrice);
-        const slug = this.createSlug(createProductDto.name);
-        const existingSlug = await this.productRepository.findOne({
-            where: { slug },
+        const name = createProductDto.name.trim();
+        const slug = this.createSlug(name);
+        const existingProduct = await this.productRepository.findOne({
+            where: {
+                subcategoryId: subcategory.id,
+                slug,
+                isActive: true,
+            },
         });
-        if (existingSlug) {
-            throw new common_1.ConflictException('Product name already exists');
+        if (existingProduct) {
+            throw new common_1.ConflictException('Product name already exists in this subcategory');
         }
-        const productCode = await this.generateProductCode(createProductDto.name);
+        const productCode = this.generateProductCode();
         const product = this.productRepository.create({
             subcategoryId: subcategory.id,
             productCode,
-            name: createProductDto.name,
+            name,
             slug,
             description: createProductDto.description,
             price: createProductDto.price.toFixed(2),
@@ -145,6 +151,15 @@ let ProductsService = class ProductsService {
         if (!product) {
             throw new common_1.NotFoundException('Product not found');
         }
+        if (!product.isActive) {
+            throw new common_1.BadRequestException('Inactive product cannot be updated');
+        }
+        if (!product.subcategory?.isActive) {
+            throw new common_1.BadRequestException('Cannot update product in an inactive subcategory');
+        }
+        if (!product.subcategory.category?.isActive) {
+            throw new common_1.BadRequestException('Cannot update product in an inactive category');
+        }
         const nextPrice = updateProductDto.price !== undefined
             ? updateProductDto.price
             : Number(product.price);
@@ -154,18 +169,21 @@ let ProductsService = class ProductsService {
                 ? Number(product.salePrice)
                 : undefined;
         this.validateSalePrice(nextPrice, nextSalePrice);
-        if (updateProductDto.name) {
-            const slug = this.createSlug(updateProductDto.name);
-            const existingSlug = await this.productRepository.findOne({
+        if (updateProductDto.name !== undefined) {
+            const name = updateProductDto.name.trim();
+            const slug = this.createSlug(name);
+            const existingProduct = await this.productRepository.findOne({
                 where: {
+                    subcategoryId: product.subcategoryId,
                     slug,
+                    isActive: true,
                     id: (0, typeorm_2.Not)(id),
                 },
             });
-            if (existingSlug) {
-                throw new common_1.ConflictException('Product name already exists');
+            if (existingProduct) {
+                throw new common_1.ConflictException('Product name already exists in this subcategory');
             }
-            product.name = updateProductDto.name;
+            product.name = name;
             product.slug = slug;
         }
         if (updateProductDto.description !== undefined) {
@@ -193,8 +211,26 @@ let ProductsService = class ProductsService {
         if (!product) {
             throw new common_1.NotFoundException('Product not found');
         }
-        const subcategory = await this.findActiveSubcategory(updateProductSubcategoryDto.subcategoryId);
-        product.subcategoryId = subcategory.id;
+        if (!product.isActive) {
+            throw new common_1.BadRequestException('Inactive product cannot be moved');
+        }
+        const { subcategoryId } = updateProductSubcategoryDto;
+        if (product.subcategoryId === subcategoryId) {
+            throw new common_1.BadRequestException('Product already belongs to this subcategory');
+        }
+        const targetSubcategory = await this.findActiveSubcategory(subcategoryId);
+        const duplicateProduct = await this.productRepository.findOne({
+            where: {
+                subcategoryId: targetSubcategory.id,
+                slug: product.slug,
+                isActive: true,
+                id: (0, typeorm_2.Not)(product.id),
+            },
+        });
+        if (duplicateProduct) {
+            throw new common_1.ConflictException(`Product already exists in target subcategory`);
+        }
+        product.subcategoryId = targetSubcategory.id;
         const savedProduct = await this.productRepository.save(product);
         return this.findOne(savedProduct.id);
     }
@@ -206,8 +242,7 @@ let ProductsService = class ProductsService {
             throw new common_1.NotFoundException('Product not found');
         }
         product.isActive = updateProductStatusDto.isActive;
-        const savedProduct = await this.productRepository.save(product);
-        return this.findOne(savedProduct.id);
+        return this.productRepository.save(product);
     }
     async findActiveSubcategory(id) {
         const subcategory = await this.subcategoryRepository.findOne({
@@ -232,22 +267,12 @@ let ProductsService = class ProductsService {
             throw new common_1.BadRequestException('Sale price must be less than or equal to price');
         }
     }
-    async generateProductCode(name) {
-        const firstWord = name.trim().split(/\s+/)[0] ?? 'PRODUCT';
-        const prefix = firstWord.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-        const safePrefix = prefix || 'PRODUCT';
-        const latestProduct = await this.productRepository
-            .createQueryBuilder('product')
-            .where('product.productCode LIKE :pattern', {
-            pattern: `${safePrefix}-%`,
-        })
-            .orderBy('product.productCode', 'DESC')
-            .getOne();
-        const latestNumber = latestProduct?.productCode
-            ? Number(latestProduct.productCode.split('-')[1])
-            : 0;
-        const nextNumber = latestNumber + 1;
-        return `${safePrefix}-${String(nextNumber).padStart(3, '0')}`;
+    generateProductCode() {
+        const randomSuffix = (0, crypto_1.randomUUID)()
+            .replace(/-/g, '')
+            .slice(0, 16)
+            .toUpperCase();
+        return `PRD-${randomSuffix}`;
     }
     createSlug(value) {
         return value

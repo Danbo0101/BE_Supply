@@ -53,7 +53,7 @@ __decorate([
     __metadata("design:type", String)
 ], Product.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 220, unique: true }),
+    (0, typeorm_1.Column)({ length: 220 }),
     __metadata("design:type", String)
 ], Product.prototype, "slug", void 0);
 __decorate([
