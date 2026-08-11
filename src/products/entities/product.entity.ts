@@ -45,7 +45,7 @@ export class Product {
     scale: 2,
     nullable: true,
   })
-  salePrice?: string;
+  salePrice!: string | null;
 
   @Column({ name: 'thumbnail_url', type: 'text', nullable: true })
   thumbnailUrl?: string;

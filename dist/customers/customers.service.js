@@ -35,18 +35,24 @@ let CustomersService = class CustomersService {
         });
         return this.customerRepository.save(customer);
     }
-    async findOrCreate(createCustomerDto) {
-        const existingCustomer = await this.findExistingCustomer(createCustomerDto.email, createCustomerDto.phone);
+    async findOrCreate(createCustomerDto, manager) {
+        const customerRepository = manager
+            ? manager.withRepository(this.customerRepository)
+            : this.customerRepository;
+        const email = createCustomerDto.email?.trim().toLowerCase();
+        const phone = createCustomerDto.phone?.trim();
+        const existingCustomer = await this.findExistingCustomer(email, phone, customerRepository);
         if (existingCustomer) {
             return existingCustomer;
         }
-        const customerCode = await this.generateCustomerCode();
-        const customer = this.customerRepository.create({
+        const customerCode = await this.generateCustomerCode(customerRepository);
+        const customer = customerRepository.create({
             ...createCustomerDto,
             customerCode,
-            email: createCustomerDto.email?.toLowerCase(),
+            email,
+            phone,
         });
-        return this.customerRepository.save(customer);
+        return customerRepository.save(customer);
     }
     async findAll() {
         return this.customerRepository.find({
@@ -95,27 +101,27 @@ let CustomersService = class CustomersService {
         }
         return this.customerRepository.save(customer);
     }
-    async findExistingCustomer(email, phone) {
+    async findExistingCustomer(email, phone, customerRepository = this.customerRepository) {
         if (!email && !phone) {
             return null;
         }
-        const queryBuilder = this.customerRepository.createQueryBuilder('customer');
+        const queryBuilder = customerRepository.createQueryBuilder('customer');
         queryBuilder.where(new typeorm_2.Brackets((qb) => {
             if (email) {
                 qb.orWhere('LOWER(customer.email) = :email', {
-                    email: email.toLowerCase(),
+                    email: email.trim().toLowerCase(),
                 });
             }
             if (phone) {
                 qb.orWhere('customer.phone = :phone', {
-                    phone,
+                    phone: phone.trim(),
                 });
             }
         }));
         return queryBuilder.getOne();
     }
-    async generateCustomerCode() {
-        const latestCustomer = await this.customerRepository
+    async generateCustomerCode(customerRepository = this.customerRepository) {
+        const latestCustomer = await customerRepository
             .createQueryBuilder('customer')
             .where('customer.customerCode LIKE :pattern', {
             pattern: 'CUS-%',
@@ -128,21 +134,21 @@ let CustomersService = class CustomersService {
         const nextNumber = latestNumber + 1;
         return `CUS-${String(nextNumber).padStart(5, '0')}`;
     }
-    async findExistingCustomerExceptId(id, email, phone) {
+    async findExistingCustomerExceptId(id, email, phone, customerRepository = this.customerRepository) {
         if (!email && !phone) {
             return null;
         }
-        const queryBuilder = this.customerRepository.createQueryBuilder('customer');
+        const queryBuilder = customerRepository.createQueryBuilder('customer');
         queryBuilder.where('customer.id != :id', { id });
         queryBuilder.andWhere(new typeorm_2.Brackets((qb) => {
             if (email) {
                 qb.orWhere('LOWER(customer.email) = :email', {
-                    email: email.toLowerCase(),
+                    email: email.trim().toLowerCase(),
                 });
             }
             if (phone) {
                 qb.orWhere('customer.phone = :phone', {
-                    phone,
+                    phone: phone.trim(),
                 });
             }
         }));

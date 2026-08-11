@@ -6,5 +6,6 @@ var OrderStatus;
     OrderStatus["PENDING_PAYMENT"] = "pending_payment";
     OrderStatus["NEW"] = "new";
     OrderStatus["DONE"] = "done";
+    OrderStatus["CANCELLED"] = "cancelled";
 })(OrderStatus || (exports.OrderStatus = OrderStatus = {}));
 //# sourceMappingURL=order-status.enum.js.map

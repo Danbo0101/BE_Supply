@@ -8,6 +8,7 @@ import { Brackets, Repository } from 'typeorm';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Customer } from './entities/customer.entity';
+import { EntityManager } from 'typeorm';
 
 @Injectable()
 export class CustomersService {
@@ -37,25 +38,38 @@ export class CustomersService {
     return this.customerRepository.save(customer);
   }
 
-  async findOrCreate(createCustomerDto: CreateCustomerDto) {
+  async findOrCreate(
+    createCustomerDto: CreateCustomerDto,
+    manager?: EntityManager,
+  ) {
+    const customerRepository = manager
+      ? manager.withRepository(this.customerRepository)
+      : this.customerRepository;
+
+    const email = createCustomerDto.email?.trim().toLowerCase();
+
+    const phone = createCustomerDto.phone?.trim();
+
     const existingCustomer = await this.findExistingCustomer(
-      createCustomerDto.email,
-      createCustomerDto.phone,
+      email,
+      phone,
+      customerRepository,
     );
 
     if (existingCustomer) {
       return existingCustomer;
     }
 
-    const customerCode = await this.generateCustomerCode();
+    const customerCode = await this.generateCustomerCode(customerRepository);
 
-    const customer = this.customerRepository.create({
+    const customer = customerRepository.create({
       ...createCustomerDto,
       customerCode,
-      email: createCustomerDto.email?.toLowerCase(),
+      email,
+      phone,
     });
 
-    return this.customerRepository.save(customer);
+    return customerRepository.save(customer);
   }
 
   async findAll() {
@@ -125,24 +139,28 @@ export class CustomersService {
     return this.customerRepository.save(customer);
   }
 
-  private async findExistingCustomer(email?: string, phone?: string) {
+  private async findExistingCustomer(
+    email?: string,
+    phone?: string,
+    customerRepository = this.customerRepository,
+  ) {
     if (!email && !phone) {
       return null;
     }
 
-    const queryBuilder = this.customerRepository.createQueryBuilder('customer');
+    const queryBuilder = customerRepository.createQueryBuilder('customer');
 
     queryBuilder.where(
       new Brackets((qb) => {
         if (email) {
           qb.orWhere('LOWER(customer.email) = :email', {
-            email: email.toLowerCase(),
+            email: email.trim().toLowerCase(),
           });
         }
 
         if (phone) {
           qb.orWhere('customer.phone = :phone', {
-            phone,
+            phone: phone.trim(),
           });
         }
       }),
@@ -151,8 +169,10 @@ export class CustomersService {
     return queryBuilder.getOne();
   }
 
-  private async generateCustomerCode() {
-    const latestCustomer = await this.customerRepository
+  private async generateCustomerCode(
+    customerRepository = this.customerRepository,
+  ) {
+    const latestCustomer = await customerRepository
       .createQueryBuilder('customer')
       .where('customer.customerCode LIKE :pattern', {
         pattern: 'CUS-%',
@@ -173,12 +193,13 @@ export class CustomersService {
     id: string,
     email?: string,
     phone?: string,
+    customerRepository = this.customerRepository,
   ) {
     if (!email && !phone) {
       return null;
     }
 
-    const queryBuilder = this.customerRepository.createQueryBuilder('customer');
+    const queryBuilder = customerRepository.createQueryBuilder('customer');
 
     queryBuilder.where('customer.id != :id', { id });
 
@@ -186,13 +207,13 @@ export class CustomersService {
       new Brackets((qb) => {
         if (email) {
           qb.orWhere('LOWER(customer.email) = :email', {
-            email: email.toLowerCase(),
+            email: email.trim().toLowerCase(),
           });
         }
 
         if (phone) {
           qb.orWhere('customer.phone = :phone', {
-            phone,
+            phone: phone.trim(),
           });
         }
       }),

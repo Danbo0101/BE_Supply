@@ -22,6 +22,8 @@ const subcategories_module_1 = require("./subcategories/subcategories.module");
 const search_module_1 = require("./search/search.module");
 const admin_users_module_1 = require("./admin-users/admin-users.module");
 const auth_module_1 = require("./auth/auth.module");
+const luxon_1 = require("luxon");
+const business_time_module_1 = require("./common/time/business-time.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -30,6 +32,13 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
+                validate(config) {
+                    const timezone = config.BUSINESS_TIME_ZONE;
+                    if (typeof timezone !== 'string' || !luxon_1.IANAZone.isValidZone(timezone)) {
+                        throw new Error(`Invalid BUSINESS_TIME_ZONE: ${String(timezone)}`);
+                    }
+                    return config;
+                },
             }),
             typeorm_1.TypeOrmModule.forRootAsync({
                 inject: [config_1.ConfigService],
@@ -54,6 +63,7 @@ exports.AppModule = AppModule = __decorate([
             search_module_1.SearchModule,
             admin_users_module_1.AdminUsersModule,
             auth_module_1.AuthModule,
+            business_time_module_1.BusinessTimeModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

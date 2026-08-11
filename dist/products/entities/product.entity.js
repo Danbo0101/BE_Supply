@@ -72,7 +72,7 @@ __decorate([
         scale: 2,
         nullable: true,
     }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], Product.prototype, "salePrice", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'thumbnail_url', type: 'text', nullable: true }),

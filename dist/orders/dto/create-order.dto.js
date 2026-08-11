@@ -31,7 +31,6 @@ __decorate([
     __metadata("design:type", String)
 ], CreateOrderCustomerDto.prototype, "email", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.MaxLength)(30),
     __metadata("design:type", String)
@@ -39,6 +38,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], CreateOrderCustomerDto.prototype, "defaultAddress", void 0);
 class CreateOrderItemDto {
@@ -60,24 +60,25 @@ class CreateOrderDto {
     shippingAddress;
     note;
     paymentMethod;
-    paymentReference;
-    paymentProofUrl;
     shippingFee;
     items;
 }
 exports.CreateOrderDto = CreateOrderDto;
 __decorate([
+    (0, class_validator_1.IsDefined)(),
     (0, class_validator_1.ValidateNested)(),
     (0, class_transformer_1.Type)(() => CreateOrderCustomerDto),
     __metadata("design:type", CreateOrderCustomerDto)
 ], CreateOrderDto.prototype, "customer", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "shippingAddress", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1000),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "note", void 0);
 __decorate([
@@ -87,20 +88,17 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MaxLength)(255),
+    (0, class_validator_1.MaxLength)(13),
+    (0, class_validator_1.IsDecimal)({
+        decimal_digits: '0,2',
+        force_decimal: false,
+    }, {
+        message: 'Shipping fee must be a valid USD amount',
+    }),
+    (0, class_validator_1.Matches)(/^(0|[1-9]\d*)(\.\d{1,2})?$/, {
+        message: 'Shipping fee must be greater than or equal to zero and contain at most 2 decimal places',
+    }),
     __metadata("design:type", String)
-], CreateOrderDto.prototype, "paymentReference", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOrderDto.prototype, "paymentProofUrl", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    __metadata("design:type", Number)
 ], CreateOrderDto.prototype, "shippingFee", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),

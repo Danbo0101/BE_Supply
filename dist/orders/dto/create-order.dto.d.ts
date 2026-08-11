@@ -2,7 +2,7 @@ import { PaymentMethod } from '../../payment-settings/enums/payment-method.enum'
 declare class CreateOrderCustomerDto {
     fullName: string;
     email?: string;
-    phone?: string;
+    phone: string;
     defaultAddress?: string;
 }
 declare class CreateOrderItemDto {
@@ -14,9 +14,7 @@ export declare class CreateOrderDto {
     shippingAddress: string;
     note?: string;
     paymentMethod: PaymentMethod;
-    paymentReference?: string;
-    paymentProofUrl?: string;
-    shippingFee?: number;
+    shippingFee?: string;
     items: CreateOrderItemDto[];
 }
 export {};

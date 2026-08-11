@@ -67,11 +67,21 @@ __decorate([
     __metadata("design:type", Number)
 ], OrderItem.prototype, "quantity", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'unit_price', type: 'decimal', precision: 10, scale: 2 }),
+    (0, typeorm_1.Column)({
+        name: 'unit_price',
+        type: 'decimal',
+        precision: 10,
+        scale: 2,
+    }),
     __metadata("design:type", String)
 ], OrderItem.prototype, "unitPrice", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'total_price', type: 'decimal', precision: 10, scale: 2 }),
+    (0, typeorm_1.Column)({
+        name: 'total_price',
+        type: 'decimal',
+        precision: 12,
+        scale: 2,
+    }),
     __metadata("design:type", String)
 ], OrderItem.prototype, "totalPrice", void 0);
 __decorate([

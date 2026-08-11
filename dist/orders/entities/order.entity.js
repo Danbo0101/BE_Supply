@@ -29,7 +29,6 @@ let Order = class Order {
     shippingFee;
     totalAmount;
     paymentMethod;
-    paymentReference;
     paymentProofUrl;
     status;
     submittedAt;
@@ -37,6 +36,7 @@ let Order = class Order {
     items;
     createdAt;
     updatedAt;
+    expiresAt;
 };
 exports.Order = Order;
 __decorate([
@@ -53,7 +53,12 @@ __decorate([
     __metadata("design:type", customer_entity_1.Customer)
 ], Order.prototype, "customer", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'order_code', length: 50, unique: true }),
+    (0, typeorm_1.Column)({
+        name: 'order_code',
+        type: 'varchar',
+        length: 50,
+        unique: true,
+    }),
     __metadata("design:type", String)
 ], Order.prototype, "orderCode", void 0);
 __decorate([
@@ -61,32 +66,45 @@ __decorate([
     __metadata("design:type", String)
 ], Order.prototype, "customerName", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'customer_email', length: 150, nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({
+        name: 'customer_email',
+        type: 'varchar',
+        length: 150,
+        nullable: true,
+    }),
+    __metadata("design:type", Object)
 ], Order.prototype, "customerEmail", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'customer_phone', length: 30, nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({
+        name: 'customer_phone',
+        type: 'varchar',
+        length: 30,
+        nullable: true,
+    }),
+    __metadata("design:type", Object)
 ], Order.prototype, "customerPhone", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'shipping_address', type: 'text' }),
     __metadata("design:type", String)
 ], Order.prototype, "shippingAddress", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({
+        type: 'text',
+        nullable: true,
+    }),
+    __metadata("design:type", Object)
 ], Order.prototype, "note", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 12, scale: 2, default: 0 }),
     __metadata("design:type", String)
 ], Order.prototype, "subtotal", void 0);
 __decorate([
     (0, typeorm_1.Column)({
         name: 'shipping_fee',
         type: 'decimal',
-        precision: 10,
+        precision: 12,
         scale: 2,
-        default: 0,
+        default: '0.00',
     }),
     __metadata("design:type", String)
 ], Order.prototype, "shippingFee", void 0);
@@ -94,9 +112,8 @@ __decorate([
     (0, typeorm_1.Column)({
         name: 'total_amount',
         type: 'decimal',
-        precision: 10,
+        precision: 12,
         scale: 2,
-        default: 0,
     }),
     __metadata("design:type", String)
 ], Order.prototype, "totalAmount", void 0);
@@ -108,10 +125,6 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], Order.prototype, "paymentMethod", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ name: 'payment_reference', length: 255 }),
-    __metadata("design:type", String)
-], Order.prototype, "paymentReference", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'payment_proof_url', type: 'text', nullable: true }),
     __metadata("design:type", String)
@@ -125,25 +138,47 @@ __decorate([
     __metadata("design:type", String)
 ], Order.prototype, "status", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'submitted_at', type: 'timestamp', nullable: true }),
-    __metadata("design:type", Date)
+    (0, typeorm_1.Column)({
+        name: 'submitted_at',
+        type: 'timestamptz',
+        nullable: true,
+    }),
+    __metadata("design:type", Object)
 ], Order.prototype, "submittedAt", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'done_at', type: 'timestamp', nullable: true }),
-    __metadata("design:type", Date)
+    (0, typeorm_1.Column)({
+        name: 'done_at',
+        type: 'timestamptz',
+        nullable: true,
+    }),
+    __metadata("design:type", Object)
 ], Order.prototype, "doneAt", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => order_item_entity_1.OrderItem, (orderItem) => orderItem.order),
     __metadata("design:type", Array)
 ], Order.prototype, "items", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    (0, typeorm_1.CreateDateColumn)({
+        name: 'created_at',
+        type: 'timestamptz',
+    }),
     __metadata("design:type", Date)
 ], Order.prototype, "createdAt", void 0);
 __decorate([
-    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    (0, typeorm_1.UpdateDateColumn)({
+        name: 'updated_at',
+        type: 'timestamptz',
+    }),
     __metadata("design:type", Date)
 ], Order.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        name: 'expires_at',
+        type: 'timestamptz',
+        nullable: true,
+    }),
+    __metadata("design:type", Object)
+], Order.prototype, "expiresAt", void 0);
 exports.Order = Order = __decorate([
     (0, typeorm_1.Entity)('orders')
 ], Order);

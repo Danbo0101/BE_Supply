@@ -13,11 +13,23 @@ import { SubcategoriesModule } from './subcategories/subcategories.module';
 import { SearchModule } from './search/search.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AuthModule } from './auth/auth.module';
+import { IANAZone } from 'luxon';
+import { BusinessTimeModule } from './common/time/business-time.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+
+      validate(config: Record<string, unknown>) {
+        const timezone = config.BUSINESS_TIME_ZONE;
+
+        if (typeof timezone !== 'string' || !IANAZone.isValidZone(timezone)) {
+          throw new Error(`Invalid BUSINESS_TIME_ZONE: ${String(timezone)}`);
+        }
+
+        return config;
+      },
     }),
 
     TypeOrmModule.forRootAsync({
@@ -53,6 +65,8 @@ import { AuthModule } from './auth/auth.module';
     AdminUsersModule,
 
     AuthModule,
+
+    BusinessTimeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

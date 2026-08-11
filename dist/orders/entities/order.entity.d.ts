@@ -8,20 +8,20 @@ export declare class Order {
     customer: Customer;
     orderCode: string;
     customerName: string;
-    customerEmail?: string;
-    customerPhone?: string;
+    customerEmail: string | null;
+    customerPhone: string | null;
     shippingAddress: string;
-    note?: string;
+    note: string | null;
     subtotal: string;
     shippingFee: string;
     totalAmount: string;
     paymentMethod: PaymentMethod;
-    paymentReference: string;
     paymentProofUrl?: string;
     status: OrderStatus;
-    submittedAt?: Date;
-    doneAt?: Date;
+    submittedAt: Date | null;
+    doneAt: Date | null;
     items: OrderItem[];
     createdAt: Date;
     updatedAt: Date;
+    expiresAt: Date | null;
 }

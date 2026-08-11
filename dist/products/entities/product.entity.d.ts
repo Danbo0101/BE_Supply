@@ -8,7 +8,7 @@ export declare class Product {
     slug: string;
     description?: string;
     price: string;
-    salePrice?: string;
+    salePrice: string | null;
     thumbnailUrl?: string;
     isActive: boolean;
     isFeatured: boolean;
