@@ -16,6 +16,7 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
 import { UpdateOrderInfoDto } from './dto/update-order-info.dto';
 import { UpdateOrderItemsDto } from './dto/update-order-items.dto';
+import { OrderStatus } from './enums/order-status.enum';
 
 @Controller('orders')
 export class OrdersController {
@@ -32,8 +33,14 @@ export class OrdersController {
 
   @Get('calendar/day')
   @UseGuards(JwtAuthGuard)
-  findByCalendarDate(@Query('date') date: string) {
-    return this.ordersService.findByCalendarDate(date);
+  findByCalendarDate(
+    @Query('date')
+    date: string,
+
+    @Query('status')
+    status?: OrderStatus,
+  ) {
+    return this.ordersService.findByCalendarDate(date, status);
   }
 
   @Post()

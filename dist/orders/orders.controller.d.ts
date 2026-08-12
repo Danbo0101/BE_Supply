@@ -4,6 +4,7 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
 import { UpdateOrderInfoDto } from './dto/update-order-info.dto';
 import { UpdateOrderItemsDto } from './dto/update-order-items.dto';
+import { OrderStatus } from './enums/order-status.enum';
 export declare class OrdersController {
     private readonly ordersService;
     constructor(ordersService: OrdersService);
@@ -11,17 +12,34 @@ export declare class OrdersController {
         from: string;
         to: string;
         timezone: string;
-        days: {
-            date: string;
+        summary: {
             pending: number;
             new: number;
             done: number;
             cancelled: number;
-        }[];
+        } & {
+            total: number;
+        };
+        days: ({
+            pending: number;
+            new: number;
+            done: number;
+            cancelled: number;
+        } & {
+            date: string;
+            total: number;
+            percentages: {
+                pending: number;
+                new: number;
+                done: number;
+                cancelled: number;
+            };
+        })[];
     }>;
-    findByCalendarDate(date: string): Promise<{
+    findByCalendarDate(date: string, status?: OrderStatus): Promise<{
         date: string;
         timezone: string;
+        status: OrderStatus | null;
         total: number;
         orders: {
             id: string;
@@ -30,7 +48,7 @@ export declare class OrdersController {
             customerPhone: string | null;
             totalAmount: string;
             paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
-            status: import("./enums/order-status.enum").OrderStatus;
+            status: OrderStatus;
             statusAt: Date;
             itemCount: number;
             totalQuantity: number;
@@ -53,7 +71,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -87,7 +105,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -121,7 +139,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -155,7 +173,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -189,7 +207,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -223,7 +241,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -257,7 +275,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -291,7 +309,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;
@@ -325,7 +343,7 @@ export declare class OrdersController {
         totalAmount: string;
         paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
         paymentProofUrl: string | undefined;
-        status: import("./enums/order-status.enum").OrderStatus;
+        status: OrderStatus;
         submittedAt: Date | null;
         doneAt: Date | null;
         createdAt: Date;

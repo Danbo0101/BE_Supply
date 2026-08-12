@@ -403,13 +403,32 @@ let OrdersService = class OrdersService {
         const countsByDate = new Map(rawCounts.map((row) => [
             row.date,
             {
-                date: row.date,
                 pending: Number(row.pending),
                 new: Number(row.new),
                 done: Number(row.done),
                 cancelled: Number(row.cancelled),
             },
         ]));
+        const calculatePercentage = (count, total) => {
+            if (total === 0) {
+                return 0;
+            }
+            return Math.round((count / total) * 100 * 100) / 100;
+        };
+        const buildCalendarDay = (date, counts) => {
+            const total = counts.pending + counts.new + counts.done + counts.cancelled;
+            return {
+                date,
+                total,
+                ...counts,
+                percentages: {
+                    pending: calculatePercentage(counts.pending, total),
+                    new: calculatePercentage(counts.new, total),
+                    done: calculatePercentage(counts.done, total),
+                    cancelled: calculatePercentage(counts.cancelled, total),
+                },
+            };
+        };
         const days = [];
         let cursor = luxon_1.DateTime.fromISO(from, {
             zone: businessTimeZone,
@@ -422,23 +441,41 @@ let OrdersService = class OrdersService {
             if (!date) {
                 throw new common_1.BadRequestException('Unable to generate calendar date');
             }
-            days.push(countsByDate.get(date) ?? {
-                date,
+            const counts = countsByDate.get(date) ?? {
                 pending: 0,
                 new: 0,
                 done: 0,
                 cancelled: 0,
-            });
+            };
+            days.push(buildCalendarDay(date, counts));
             cursor = cursor.plus({ days: 1 });
         }
+        const summary = days.reduce((result, day) => {
+            result.total += day.total;
+            result.pending += day.pending;
+            result.new += day.new;
+            result.done += day.done;
+            result.cancelled += day.cancelled;
+            return result;
+        }, {
+            total: 0,
+            pending: 0,
+            new: 0,
+            done: 0,
+            cancelled: 0,
+        });
         return {
             from,
             to,
             timezone: businessTimeZone,
+            summary,
             days,
         };
     }
-    async findByCalendarDate(date) {
+    async findByCalendarDate(date, status) {
+        if (status !== undefined && !Object.values(order_status_enum_1.OrderStatus).includes(status)) {
+            throw new common_1.BadRequestException(`Invalid order status: ${status}`);
+        }
         const businessTimeZone = this.businessTimeService.timezone;
         const { fromDate, toDate } = this.businessTimeService.getDayRange(date);
         const calendarDateExpression = `
@@ -456,7 +493,7 @@ let OrdersService = class OrdersService {
         THEN "orders"."updated_at"
     END
   `;
-        const orders = await this.orderRepository
+        const queryBuilder = this.orderRepository
             .createQueryBuilder('orders')
             .leftJoin('orders.items', 'items')
             .select('orders.id', 'id')
@@ -478,13 +515,20 @@ let OrdersService = class OrdersService {
             cancelledStatus: order_status_enum_1.OrderStatus.CANCELLED,
             fromDate,
             toDate,
-        })
+        });
+        if (status !== undefined) {
+            queryBuilder.andWhere('"orders"."status" = :filterStatus', {
+                filterStatus: status,
+            });
+        }
+        const orders = await queryBuilder
             .groupBy('orders.id')
             .orderBy('status_at', 'DESC')
             .getRawMany();
         return {
             date,
             timezone: businessTimeZone,
+            status: status ?? null,
             total: orders.length,
             orders: orders.map((order) => ({
                 id: order.id,

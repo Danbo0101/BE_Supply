@@ -21,6 +21,7 @@ const update_order_status_dto_1 = require("./dto/update-order-status.dto");
 const orders_service_1 = require("./orders.service");
 const update_order_info_dto_1 = require("./dto/update-order-info.dto");
 const update_order_items_dto_1 = require("./dto/update-order-items.dto");
+const order_status_enum_1 = require("./enums/order-status.enum");
 let OrdersController = class OrdersController {
     ordersService;
     constructor(ordersService) {
@@ -29,8 +30,8 @@ let OrdersController = class OrdersController {
     findByCalendarDateRange(from, to) {
         return this.ordersService.findByCalendarDateRange(from, to);
     }
-    findByCalendarDate(date) {
-        return this.ordersService.findByCalendarDate(date);
+    findByCalendarDate(date, status) {
+        return this.ordersService.findByCalendarDate(date, status);
     }
     create(createOrderDto) {
         return this.ordersService.create(createOrderDto);
@@ -74,8 +75,9 @@ __decorate([
     (0, common_1.Get)('calendar/day'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Query)('date')),
+    __param(1, (0, common_1.Query)('status')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], OrdersController.prototype, "findByCalendarDate", null);
 __decorate([

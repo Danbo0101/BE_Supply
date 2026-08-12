@@ -195,17 +195,34 @@ export declare class OrdersService {
         from: string;
         to: string;
         timezone: string;
-        days: {
-            date: string;
+        summary: {
             pending: number;
             new: number;
             done: number;
             cancelled: number;
-        }[];
+        } & {
+            total: number;
+        };
+        days: ({
+            pending: number;
+            new: number;
+            done: number;
+            cancelled: number;
+        } & {
+            date: string;
+            total: number;
+            percentages: {
+                pending: number;
+                new: number;
+                done: number;
+                cancelled: number;
+            };
+        })[];
     }>;
-    findByCalendarDate(date: string): Promise<{
+    findByCalendarDate(date: string, status?: OrderStatus): Promise<{
         date: string;
         timezone: string;
+        status: OrderStatus | null;
         total: number;
         orders: {
             id: string;

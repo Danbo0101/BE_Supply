@@ -473,12 +473,21 @@ export class OrdersService {
   }
 
   async findByCalendarDateRange(from: string, to: string) {
-    type CalendarDayCount = {
-      date: string;
+    type StatusCounts = {
       pending: number;
       new: number;
       done: number;
       cancelled: number;
+    };
+
+    type CalendarDayCount = StatusCounts & {
+      date: string;
+      total: number;
+      percentages: StatusCounts;
+    };
+
+    type CalendarSummary = StatusCounts & {
+      total: number;
     };
 
     type CalendarCountRow = {
@@ -582,11 +591,10 @@ export class OrdersService {
       .groupBy(localCalendarDateExpression)
       .getRawMany<CalendarCountRow>();
 
-    const countsByDate = new Map<string, CalendarDayCount>(
+    const countsByDate = new Map<string, StatusCounts>(
       rawCounts.map((row) => [
         row.date,
         {
-          date: row.date,
           pending: Number(row.pending),
           new: Number(row.new),
           done: Number(row.done),
@@ -594,6 +602,35 @@ export class OrdersService {
         },
       ]),
     );
+
+    const calculatePercentage = (count: number, total: number) => {
+      if (total === 0) {
+        return 0;
+      }
+
+      return Math.round((count / total) * 100 * 100) / 100;
+    };
+
+    const buildCalendarDay = (
+      date: string,
+      counts: StatusCounts,
+    ): CalendarDayCount => {
+      const total =
+        counts.pending + counts.new + counts.done + counts.cancelled;
+
+      return {
+        date,
+        total,
+        ...counts,
+
+        percentages: {
+          pending: calculatePercentage(counts.pending, total),
+          new: calculatePercentage(counts.new, total),
+          done: calculatePercentage(counts.done, total),
+          cancelled: calculatePercentage(counts.cancelled, total),
+        },
+      };
+    };
 
     const days: CalendarDayCount[] = [];
 
@@ -617,28 +654,51 @@ export class OrdersService {
         throw new BadRequestException('Unable to generate calendar date');
       }
 
-      days.push(
-        countsByDate.get(date) ?? {
-          date,
-          pending: 0,
-          new: 0,
-          done: 0,
-          cancelled: 0,
-        },
-      );
+      const counts = countsByDate.get(date) ?? {
+        pending: 0,
+        new: 0,
+        done: 0,
+        cancelled: 0,
+      };
+
+      days.push(buildCalendarDay(date, counts));
 
       cursor = cursor.plus({ days: 1 });
     }
+
+    const summary = days.reduce<CalendarSummary>(
+      (result, day) => {
+        result.total += day.total;
+        result.pending += day.pending;
+        result.new += day.new;
+        result.done += day.done;
+        result.cancelled += day.cancelled;
+
+        return result;
+      },
+      {
+        total: 0,
+        pending: 0,
+        new: 0,
+        done: 0,
+        cancelled: 0,
+      },
+    );
 
     return {
       from,
       to,
       timezone: businessTimeZone,
+      summary,
       days,
     };
   }
 
-  async findByCalendarDate(date: string) {
+  async findByCalendarDate(date: string, status?: OrderStatus) {
+    if (status !== undefined && !Object.values(OrderStatus).includes(status)) {
+      throw new BadRequestException(`Invalid order status: ${status}`);
+    }
+
     const businessTimeZone = this.businessTimeService.timezone;
 
     const { fromDate, toDate } = this.businessTimeService.getDayRange(date);
@@ -672,7 +732,7 @@ export class OrdersService {
       total_quantity: string;
     };
 
-    const orders = await this.orderRepository
+    const queryBuilder = this.orderRepository
       .createQueryBuilder('orders')
       .leftJoin('orders.items', 'items')
       .select('orders.id', 'id')
@@ -694,7 +754,15 @@ export class OrdersService {
         cancelledStatus: OrderStatus.CANCELLED,
         fromDate,
         toDate,
-      })
+      });
+
+    if (status !== undefined) {
+      queryBuilder.andWhere('"orders"."status" = :filterStatus', {
+        filterStatus: status,
+      });
+    }
+
+    const orders = await queryBuilder
       .groupBy('orders.id')
       .orderBy('status_at', 'DESC')
       .getRawMany<RawCalendarOrder>();
@@ -702,6 +770,11 @@ export class OrdersService {
     return {
       date,
       timezone: businessTimeZone,
+
+      // null nghĩa là đang lấy tất cả status.
+      status: status ?? null,
+
+      // Nếu có status thì đây là tổng của status đó.
       total: orders.length,
 
       orders: orders.map((order) => ({
