@@ -506,6 +506,8 @@ export class OrdersService {
       42,
     );
 
+    await this.cancelExpiredPendingOrders();
+
     const calendarDateExpression = `
     CASE
       WHEN "orders"."status" = :pendingStatus
@@ -702,6 +704,8 @@ export class OrdersService {
     const businessTimeZone = this.businessTimeService.timezone;
 
     const { fromDate, toDate } = this.businessTimeService.getDayRange(date);
+
+    await this.cancelExpiredPendingOrders();
 
     const calendarDateExpression = `
     CASE
@@ -1237,5 +1241,32 @@ export class OrdersService {
     }
 
     return normalizedPhone;
+  }
+
+  private async cancelExpiredPendingOrders(): Promise<number> {
+    const now = DateTime.utc().toJSDate();
+
+    const result = await this.orderRepository
+      .createQueryBuilder()
+      .update(Order)
+      .set({
+        status: OrderStatus.CANCELLED,
+
+        /*
+         * Calendar của CANCELLED đang dựa vào updatedAt,
+         * nên chủ động ghi thời điểm chuyển trạng thái.
+         */
+        updatedAt: now,
+      })
+      .where('"status" = :pendingStatus', {
+        pendingStatus: OrderStatus.PENDING_PAYMENT,
+      })
+      .andWhere('"expires_at" IS NOT NULL')
+      .andWhere('"expires_at" <= :now', {
+        now,
+      })
+      .execute();
+
+    return result.affected ?? 0;
   }
 }
