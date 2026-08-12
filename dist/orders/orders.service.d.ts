@@ -376,4 +376,5 @@ export declare class OrdersService {
     private generateOrderCode;
     private toOrderResponse;
     private normalizePhone;
+    private cancelExpiredPendingOrders;
 }

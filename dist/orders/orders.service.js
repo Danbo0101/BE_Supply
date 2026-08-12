@@ -139,7 +139,7 @@ let OrdersService = class OrdersService {
             }, manager);
             const normalizedPhone = this.normalizePhone(createOrderDto.customer.phone);
             const orderCode = await this.generateOrderCode(orderRepository);
-            const expiresAt = luxon_1.DateTime.utc().plus({ minutes: 30 }).toJSDate();
+            const expiresAt = luxon_1.DateTime.utc().plus({ minutes: 10 }).toJSDate();
             const order = orderRepository.create({
                 customerId: customer.id,
                 orderCode,
@@ -338,6 +338,7 @@ let OrdersService = class OrdersService {
     async findByCalendarDateRange(from, to) {
         const businessTimeZone = this.businessTimeService.timezone;
         const { fromDate, toDate } = this.businessTimeService.getDateRange(from, to, 42);
+        await this.cancelExpiredPendingOrders();
         const calendarDateExpression = `
     CASE
       WHEN "orders"."status" = :pendingStatus
@@ -478,6 +479,7 @@ let OrdersService = class OrdersService {
         }
         const businessTimeZone = this.businessTimeService.timezone;
         const { fromDate, toDate } = this.businessTimeService.getDayRange(date);
+        await this.cancelExpiredPendingOrders();
         const calendarDateExpression = `
     CASE
       WHEN "orders"."status" = :pendingStatus
@@ -829,6 +831,25 @@ let OrdersService = class OrdersService {
             throw new common_1.BadRequestException('Phone number must contain between 7 and 15 digits');
         }
         return normalizedPhone;
+    }
+    async cancelExpiredPendingOrders() {
+        const now = luxon_1.DateTime.utc().toJSDate();
+        const result = await this.orderRepository
+            .createQueryBuilder()
+            .update(order_entity_1.Order)
+            .set({
+            status: order_status_enum_1.OrderStatus.CANCELLED,
+            updatedAt: now,
+        })
+            .where('"status" = :pendingStatus', {
+            pendingStatus: order_status_enum_1.OrderStatus.PENDING_PAYMENT,
+        })
+            .andWhere('"expires_at" IS NOT NULL')
+            .andWhere('"expires_at" <= :now', {
+            now,
+        })
+            .execute();
+        return result.affected ?? 0;
     }
 };
 exports.OrdersService = OrdersService;

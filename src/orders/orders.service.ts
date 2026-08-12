@@ -191,7 +191,7 @@ export class OrdersService {
 
       const orderCode = await this.generateOrderCode(orderRepository);
 
-      const expiresAt = DateTime.utc().plus({ minutes: 30 }).toJSDate();
+      const expiresAt = DateTime.utc().plus({ minutes: 10 }).toJSDate();
 
       const order = orderRepository.create({
         customerId: customer.id,
