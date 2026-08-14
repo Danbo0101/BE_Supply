@@ -16,7 +16,7 @@ export class Category {
   @Column({ length: 150 })
   name!: string;
 
-  @Column({ length: 180, unique: true })
+  @Column({ length: 180 })
   slug!: string;
 
   @Column({ type: 'text', nullable: true })

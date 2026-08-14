@@ -26,7 +26,10 @@ export class CategoriesService {
     const slug = this.createSlug(createCategoryDto.name);
 
     const existingCategory = await this.categoryRepository.findOne({
-      where: { slug },
+      where: {
+        slug,
+        isActive: true,
+      },
     });
 
     if (existingCategory) {
