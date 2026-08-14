@@ -32,8 +32,8 @@ let ProductsController = class ProductsController {
     createForSubcategory(subcategoryId, createProductDto) {
         return this.productsService.createForSubcategory(subcategoryId, createProductDto);
     }
-    findAllBySubcategory(subcategoryId, sort, minPrice, maxPrice) {
-        return this.productsService.findAllBySubcategory(subcategoryId, sort, minPrice, maxPrice);
+    findAllBySubcategory(subcategoryId, sort = 'featured', minPrice, maxPrice, query) {
+        return this.productsService.findAllBySubcategory(subcategoryId, sort, minPrice, maxPrice, query);
     }
     findOne(id) {
         return this.productsService.findOne(id);
@@ -72,8 +72,9 @@ __decorate([
     __param(1, (0, common_1.Query)('sort')),
     __param(2, (0, common_1.Query)('minPrice')),
     __param(3, (0, common_1.Query)('maxPrice')),
+    __param(4, (0, common_1.Query)('query')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [String, Object, String, String, String]),
     __metadata("design:returntype", void 0)
 ], ProductsController.prototype, "findAllBySubcategory", null);
 __decorate([

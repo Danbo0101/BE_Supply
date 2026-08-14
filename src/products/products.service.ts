@@ -165,17 +165,29 @@ export class ProductsService {
     sort = 'featured',
     minPrice?: string,
     maxPrice?: string,
+    query?: string,
   ) {
     await this.findActiveSubcategory(subcategoryId);
+
+    const searchValue = query?.trim();
 
     const queryBuilder = this.productRepository
       .createQueryBuilder('product')
       .innerJoinAndSelect('product.subcategory', 'subcategory')
       .innerJoinAndSelect('subcategory.category', 'category')
-      .where('product.subcategoryId = :subcategoryId', { subcategoryId })
+      .where('product.subcategoryId = :subcategoryId', {
+        subcategoryId,
+      })
       .andWhere('product.isActive = true')
       .andWhere('subcategory.isActive = true')
       .andWhere('category.isActive = true');
+
+    // Search theo tên product trong subcategory đang chọn.
+    if (searchValue) {
+      queryBuilder.andWhere('product.name ILIKE :keyword', {
+        keyword: `%${searchValue}%`,
+      });
+    }
 
     const parsedMinPrice =
       minPrice !== undefined && minPrice !== '' ? Number(minPrice) : undefined;
@@ -210,14 +222,18 @@ export class ProductsService {
     if (parsedMinPrice !== undefined) {
       queryBuilder.andWhere(
         'COALESCE(product.salePrice, product.price) >= :minPrice',
-        { minPrice: parsedMinPrice },
+        {
+          minPrice: parsedMinPrice,
+        },
       );
     }
 
     if (parsedMaxPrice !== undefined) {
       queryBuilder.andWhere(
         'COALESCE(product.salePrice, product.price) <= :maxPrice',
-        { maxPrice: parsedMaxPrice },
+        {
+          maxPrice: parsedMaxPrice,
+        },
       );
     }
 

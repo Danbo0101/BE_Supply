@@ -34,7 +34,7 @@ __decorate([
     __metadata("design:type", String)
 ], Category.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 180, unique: true }),
+    (0, typeorm_1.Column)({ length: 180 }),
     __metadata("design:type", String)
 ], Category.prototype, "slug", void 0);
 __decorate([

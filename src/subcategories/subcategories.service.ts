@@ -86,13 +86,27 @@ export class SubcategoriesService {
     return this.subcategoryRepository.save(subcategory);
   }
 
-  async findAll(query?: string) {
+  async findAllByCategory(categoryId: string, query?: string) {
+    const category = await this.categoryRepository.findOne({
+      where: {
+        id: categoryId,
+        isActive: true,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
     const searchValue = query?.trim();
 
     const queryBuilder = this.subcategoryRepository
       .createQueryBuilder('subcategory')
       .innerJoinAndSelect('subcategory.category', 'category')
-      .where('subcategory.isActive = :subcategoryActive', {
+      .where('subcategory.categoryId = :categoryId', {
+        categoryId,
+      })
+      .andWhere('subcategory.isActive = :subcategoryActive', {
         subcategoryActive: true,
       })
       .andWhere('category.isActive = :categoryActive', {
@@ -106,38 +120,13 @@ export class SubcategoriesService {
     }
 
     const subcategories = await queryBuilder
-      .orderBy('category.displayOrder', 'ASC')
-      .addOrderBy('subcategory.displayOrder', 'ASC')
+      .orderBy('subcategory.displayOrder', 'ASC')
       .addOrderBy('subcategory.createdAt', 'DESC')
       .getMany();
 
     return subcategories.map((subcategory) =>
       this.toSubcategoryResponse(subcategory),
     );
-  }
-
-  async findAllByCategory(categoryId: string) {
-    const category = await this.categoryRepository.findOne({
-      where: {
-        id: categoryId,
-        isActive: true,
-      },
-    });
-
-    if (!category) {
-      throw new NotFoundException('Category not found');
-    }
-
-    return this.subcategoryRepository.find({
-      where: {
-        categoryId,
-        isActive: true,
-      },
-      order: {
-        displayOrder: 'ASC',
-        createdAt: 'DESC',
-      },
-    });
   }
 
   async findOne(id: string) {

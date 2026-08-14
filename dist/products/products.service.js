@@ -117,16 +117,24 @@ let ProductsService = class ProductsService {
         const savedProduct = await this.productRepository.save(product);
         return this.findOne(savedProduct.id);
     }
-    async findAllBySubcategory(subcategoryId, sort = 'featured', minPrice, maxPrice) {
+    async findAllBySubcategory(subcategoryId, sort = 'featured', minPrice, maxPrice, query) {
         await this.findActiveSubcategory(subcategoryId);
+        const searchValue = query?.trim();
         const queryBuilder = this.productRepository
             .createQueryBuilder('product')
             .innerJoinAndSelect('product.subcategory', 'subcategory')
             .innerJoinAndSelect('subcategory.category', 'category')
-            .where('product.subcategoryId = :subcategoryId', { subcategoryId })
+            .where('product.subcategoryId = :subcategoryId', {
+            subcategoryId,
+        })
             .andWhere('product.isActive = true')
             .andWhere('subcategory.isActive = true')
             .andWhere('category.isActive = true');
+        if (searchValue) {
+            queryBuilder.andWhere('product.name ILIKE :keyword', {
+                keyword: `%${searchValue}%`,
+            });
+        }
         const parsedMinPrice = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : undefined;
         const parsedMaxPrice = maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : undefined;
         if (parsedMinPrice !== undefined &&
@@ -143,10 +151,14 @@ let ProductsService = class ProductsService {
             throw new common_1.BadRequestException('minPrice must be less than or equal to maxPrice');
         }
         if (parsedMinPrice !== undefined) {
-            queryBuilder.andWhere('COALESCE(product.salePrice, product.price) >= :minPrice', { minPrice: parsedMinPrice });
+            queryBuilder.andWhere('COALESCE(product.salePrice, product.price) >= :minPrice', {
+                minPrice: parsedMinPrice,
+            });
         }
         if (parsedMaxPrice !== undefined) {
-            queryBuilder.andWhere('COALESCE(product.salePrice, product.price) <= :maxPrice', { maxPrice: parsedMaxPrice });
+            queryBuilder.andWhere('COALESCE(product.salePrice, product.price) <= :maxPrice', {
+                maxPrice: parsedMaxPrice,
+            });
         }
         switch (sort) {
             case 'price_asc':

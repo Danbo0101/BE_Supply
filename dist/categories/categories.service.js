@@ -30,7 +30,10 @@ let CategoriesService = class CategoriesService {
     async create(createCategoryDto) {
         const slug = this.createSlug(createCategoryDto.name);
         const existingCategory = await this.categoryRepository.findOne({
-            where: { slug },
+            where: {
+                slug,
+                isActive: true,
+            },
         });
         if (existingCategory) {
             throw new common_1.ConflictException('Category name already exists');

@@ -41,15 +41,17 @@ export class ProductsController {
   @Get('subcategories/:subcategoryId/products')
   findAllBySubcategory(
     @Param('subcategoryId') subcategoryId: string,
-    @Query('sort') sort?: string,
+    @Query('sort') sort = 'featured',
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
+    @Query('query') query?: string,
   ) {
     return this.productsService.findAllBySubcategory(
       subcategoryId,
       sort,
       minPrice,
       maxPrice,
+      query,
     );
   }
 

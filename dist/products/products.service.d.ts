@@ -54,7 +54,7 @@ export declare class ProductsService {
             } | null;
         } | null;
     }>;
-    findAllBySubcategory(subcategoryId: string, sort?: string, minPrice?: string, maxPrice?: string): Promise<{
+    findAllBySubcategory(subcategoryId: string, sort?: string, minPrice?: string, maxPrice?: string, query?: string): Promise<{
         id: string;
         subcategoryId: string;
         productCode: string | undefined;

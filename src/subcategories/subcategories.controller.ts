@@ -32,16 +32,12 @@ export class SubcategoriesController {
     );
   }
 
-  // Search tất cả subcategory
-  @Get('subcategories')
-  findAll(@Query('query') query?: string) {
-    return this.subcategoriesService.findAll(query);
-  }
-
-  // Lấy subcategory theo category
   @Get('categories/:categoryId/subcategories')
-  findAllByCategory(@Param('categoryId', ParseUUIDPipe) categoryId: string) {
-    return this.subcategoriesService.findAllByCategory(categoryId);
+  findAllByCategory(
+    @Param('categoryId') categoryId: string,
+    @Query('query') query?: string,
+  ) {
+    return this.subcategoriesService.findAllByCategory(categoryId, query);
   }
 
   @Get('subcategories/:id')
