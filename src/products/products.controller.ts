@@ -14,10 +14,17 @@ import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
+import { SearchProductsDto } from './dto/search-products.dto';
 
 @Controller()
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  searchForOrder(@Query() query: SearchProductsDto) {
+    return this.productsService.searchForOrder(query);
+  }
 
   @Post('subcategories/:subcategoryId/products')
   @UseGuards(JwtAuthGuard)

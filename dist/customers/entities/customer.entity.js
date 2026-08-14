@@ -28,35 +28,62 @@ __decorate([
     __metadata("design:type", String)
 ], Customer.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'customer_code', length: 50, unique: true, nullable: true }),
+    (0, typeorm_1.Column)({
+        name: 'customer_code',
+        length: 50,
+        unique: true,
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Customer.prototype, "customerCode", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'full_name', length: 150 }),
+    (0, typeorm_1.Column)({
+        name: 'full_name',
+        length: 150,
+    }),
     __metadata("design:type", String)
 ], Customer.prototype, "fullName", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 150, nullable: true }),
+    (0, typeorm_1.Column)({
+        length: 150,
+        unique: true,
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Customer.prototype, "email", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 30, nullable: true }),
+    (0, typeorm_1.Column)({
+        length: 30,
+        unique: true,
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Customer.prototype, "phone", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'default_address', type: 'text', nullable: true }),
+    (0, typeorm_1.Column)({
+        name: 'default_address',
+        type: 'text',
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Customer.prototype, "defaultAddress", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    (0, typeorm_1.Column)({
+        type: 'text',
+        nullable: true,
+    }),
     __metadata("design:type", String)
 ], Customer.prototype, "note", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
+    (0, typeorm_1.CreateDateColumn)({
+        name: 'created_at',
+    }),
     __metadata("design:type", Date)
 ], Customer.prototype, "createdAt", void 0);
 __decorate([
-    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
+    (0, typeorm_1.UpdateDateColumn)({
+        name: 'updated_at',
+    }),
     __metadata("design:type", Date)
 ], Customer.prototype, "updatedAt", void 0);
 exports.Customer = Customer = __decorate([

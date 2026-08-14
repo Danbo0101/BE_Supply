@@ -6,6 +6,7 @@ import {
   Patch,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,6 +30,11 @@ export class SubcategoriesController {
       categoryId,
       createSubcategoryDto,
     );
+  }
+
+  @Get('subcategories')
+  findAll(@Query('query') query?: string) {
+    return this.subcategoriesService.findAll(query);
   }
 
   @Get('categories/:categoryId/subcategories')

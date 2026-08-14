@@ -18,6 +18,7 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const update_customer_dto_1 = require("./dto/update-customer.dto");
 const create_customer_dto_1 = require("./dto/create-customer.dto");
 const customers_service_1 = require("./customers.service");
+const find_customers_query_dto_1 = require("./dto/find-customers-query.dto");
 let CustomersController = class CustomersController {
     customersService;
     constructor(customersService) {
@@ -26,8 +27,11 @@ let CustomersController = class CustomersController {
     create(createCustomerDto) {
         return this.customersService.create(createCustomerDto);
     }
-    findAll() {
-        return this.customersService.findAll();
+    lookup(email, phone) {
+        return this.customersService.lookup(email, phone);
+    }
+    findAll(query) {
+        return this.customersService.findAll(query);
     }
     findOne(id) {
         return this.customersService.findOne(id);
@@ -45,9 +49,18 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], CustomersController.prototype, "create", null);
 __decorate([
-    (0, common_1.Get)(),
+    (0, common_1.Get)('lookup'),
+    __param(0, (0, common_1.Query)('email')),
+    __param(1, (0, common_1.Query)('phone')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CustomersController.prototype, "lookup", null);
+__decorate([
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [find_customers_query_dto_1.FindCustomersQueryDto]),
     __metadata("design:returntype", void 0)
 ], CustomersController.prototype, "findAll", null);
 __decorate([

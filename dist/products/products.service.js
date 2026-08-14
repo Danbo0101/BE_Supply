@@ -26,6 +26,64 @@ let ProductsService = class ProductsService {
         this.productRepository = productRepository;
         this.subcategoryRepository = subcategoryRepository;
     }
+    async searchForOrder(searchProductsDto) {
+        const { query, page, limit } = searchProductsDto;
+        const normalizedQuery = query.trim();
+        if (normalizedQuery.length < 2) {
+            throw new common_1.BadRequestException('Search query must contain at least 2 characters');
+        }
+        const skip = (page - 1) * limit;
+        const queryBuilder = this.productRepository
+            .createQueryBuilder('product')
+            .innerJoin('product.subcategory', 'subcategory')
+            .innerJoin('subcategory.category', 'category')
+            .where('product.name ILIKE :query', {
+            query: `%${normalizedQuery}%`,
+        })
+            .andWhere('product.isActive = true')
+            .andWhere('subcategory.isActive = true')
+            .andWhere('category.isActive = true');
+        const total = await queryBuilder.getCount();
+        const products = await queryBuilder
+            .clone()
+            .select('product.id', 'id')
+            .addSelect('product.productCode', 'product_code')
+            .addSelect('product.name', 'name')
+            .addSelect('product.thumbnailUrl', 'thumbnail_url')
+            .addSelect('product.price', 'price')
+            .addSelect('product.salePrice', 'sale_price')
+            .addSelect('category.name', 'category_name')
+            .addSelect('subcategory.name', 'subcategory_name')
+            .orderBy('product.isFeatured', 'DESC')
+            .addOrderBy('product.name', 'ASC')
+            .offset(skip)
+            .limit(limit)
+            .getRawMany();
+        return {
+            query: normalizedQuery,
+            page,
+            limit,
+            total,
+            totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+            items: products.map((product) => {
+                const originalPrice = Number(product.price);
+                const salePrice = product.sale_price !== null ? Number(product.sale_price) : null;
+                const hasDiscount = salePrice !== null && salePrice < originalPrice;
+                return {
+                    id: product.id,
+                    productCode: product.product_code,
+                    name: product.name,
+                    thumbnailUrl: product.thumbnail_url,
+                    displayPrice: (hasDiscount ? salePrice : originalPrice).toFixed(2),
+                    originalPrice: originalPrice.toFixed(2),
+                    hasDiscount,
+                    isAvailable: true,
+                    categoryName: product.category_name,
+                    subcategoryName: product.subcategory_name,
+                };
+            }),
+        };
+    }
     async createForSubcategory(subcategoryId, createProductDto) {
         const subcategory = await this.findActiveSubcategory(subcategoryId);
         this.validateSalePrice(createProductDto.price, createProductDto.salePrice);

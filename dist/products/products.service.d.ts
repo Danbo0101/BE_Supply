@@ -5,10 +5,30 @@ import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
+import { SearchProductsDto } from './dto/search-products.dto';
 export declare class ProductsService {
     private readonly productRepository;
     private readonly subcategoryRepository;
     constructor(productRepository: Repository<Product>, subcategoryRepository: Repository<Subcategory>);
+    searchForOrder(searchProductsDto: SearchProductsDto): Promise<{
+        query: string;
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        items: {
+            id: string;
+            productCode: string;
+            name: string;
+            thumbnailUrl: string | null;
+            displayPrice: string;
+            originalPrice: string;
+            hasDiscount: boolean;
+            isAvailable: boolean;
+            categoryName: string;
+            subcategoryName: string;
+        }[];
+    }>;
     createForSubcategory(subcategoryId: string, createProductDto: CreateProductDto): Promise<{
         id: string;
         subcategoryId: string;

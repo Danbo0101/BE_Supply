@@ -11,27 +11,54 @@ export class Customer {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'customer_code', length: 50, unique: true, nullable: true })
+  @Column({
+    name: 'customer_code',
+    length: 50,
+    unique: true,
+    nullable: true,
+  })
   customerCode?: string;
 
-  @Column({ name: 'full_name', length: 150 })
+  @Column({
+    name: 'full_name',
+    length: 150,
+  })
   fullName!: string;
 
-  @Column({ length: 150, nullable: true })
+  @Column({
+    length: 150,
+    unique: true,
+    nullable: true,
+  })
   email?: string;
 
-  @Column({ length: 30, nullable: true })
+  @Column({
+    length: 30,
+    unique: true,
+    nullable: true,
+  })
   phone?: string;
 
-  @Column({ name: 'default_address', type: 'text', nullable: true })
+  @Column({
+    name: 'default_address',
+    type: 'text',
+    nullable: true,
+  })
   defaultAddress?: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
   note?: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({
+    name: 'created_at',
+  })
   createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({
+    name: 'updated_at',
+  })
   updatedAt!: Date;
 }

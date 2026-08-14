@@ -64,10 +64,16 @@ let CategoriesService = class CategoriesService {
             .replace(/\s+/g, '-')
             .replace(/-+/g, '-');
     }
-    async findAll() {
+    async findAll(query) {
+        const searchValue = query?.trim();
         return this.categoryRepository.find({
             where: {
                 isActive: true,
+                ...(searchValue
+                    ? {
+                        name: (0, typeorm_3.ILike)(`%${searchValue}%`),
+                    }
+                    : {}),
             },
             order: {
                 displayOrder: 'ASC',

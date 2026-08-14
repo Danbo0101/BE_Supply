@@ -86,6 +86,36 @@ export class SubcategoriesService {
     return this.subcategoryRepository.save(subcategory);
   }
 
+  async findAll(query?: string) {
+    const searchValue = query?.trim();
+
+    const queryBuilder = this.subcategoryRepository
+      .createQueryBuilder('subcategory')
+      .innerJoinAndSelect('subcategory.category', 'category')
+      .where('subcategory.isActive = :subcategoryActive', {
+        subcategoryActive: true,
+      })
+      .andWhere('category.isActive = :categoryActive', {
+        categoryActive: true,
+      });
+
+    if (searchValue) {
+      queryBuilder.andWhere('subcategory.name ILIKE :keyword', {
+        keyword: `%${searchValue}%`,
+      });
+    }
+
+    const subcategories = await queryBuilder
+      .orderBy('category.displayOrder', 'ASC')
+      .addOrderBy('subcategory.displayOrder', 'ASC')
+      .addOrderBy('subcategory.createdAt', 'DESC')
+      .getMany();
+
+    return subcategories.map((subcategory) =>
+      this.toSubcategoryResponse(subcategory),
+    );
+  }
+
   async findAllByCategory(categoryId: string) {
     const category = await this.categoryRepository.findOne({
       where: {

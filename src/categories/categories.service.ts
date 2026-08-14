@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Not, Repository, ILike } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { Category } from './entities/category.entity';
 import { Product } from '../products/entities/product.entity';
@@ -69,10 +69,17 @@ export class CategoriesService {
       .replace(/-+/g, '-');
   }
 
-  async findAll() {
+  async findAll(query?: string) {
+    const searchValue = query?.trim();
+
     return this.categoryRepository.find({
       where: {
         isActive: true,
+        ...(searchValue
+          ? {
+              name: ILike(`%${searchValue}%`),
+            }
+          : {}),
       },
       order: {
         displayOrder: 'ASC',

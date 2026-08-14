@@ -10,7 +10,7 @@ export declare class CategoriesService {
     constructor(categoryRepository: Repository<Category>, dataSource: DataSource);
     create(createCategoryDto: CreateCategoryDto): Promise<Category>;
     private createSlug;
-    findAll(): Promise<Category[]>;
+    findAll(query?: string): Promise<Category[]>;
     findOne(id: string): Promise<Category>;
     update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<Category>;
     updateStatus(id: string, updateCategoryStatusDto: UpdateCategoryStatusDto): Promise<Category>;

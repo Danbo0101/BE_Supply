@@ -20,10 +20,14 @@ const update_product_status_dto_1 = require("./dto/update-product-status.dto");
 const update_product_subcategory_dto_1 = require("./dto/update-product-subcategory.dto");
 const update_product_dto_1 = require("./dto/update-product.dto");
 const products_service_1 = require("./products.service");
+const search_products_dto_1 = require("./dto/search-products.dto");
 let ProductsController = class ProductsController {
     productsService;
     constructor(productsService) {
         this.productsService = productsService;
+    }
+    searchForOrder(query) {
+        return this.productsService.searchForOrder(query);
     }
     createForSubcategory(subcategoryId, createProductDto) {
         return this.productsService.createForSubcategory(subcategoryId, createProductDto);
@@ -45,6 +49,14 @@ let ProductsController = class ProductsController {
     }
 };
 exports.ProductsController = ProductsController;
+__decorate([
+    (0, common_1.Get)('search'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [search_products_dto_1.SearchProductsDto]),
+    __metadata("design:returntype", void 0)
+], ProductsController.prototype, "searchForOrder", null);
 __decorate([
     (0, common_1.Post)('subcategories/:subcategoryId/products'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

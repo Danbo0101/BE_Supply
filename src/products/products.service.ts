@@ -13,6 +13,7 @@ import { UpdateProductSubcategoryDto } from './dto/update-product-subcategory.dt
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 import { randomUUID } from 'crypto';
+import { SearchProductsDto } from './dto/search-products.dto';
 
 @Injectable()
 export class ProductsService {
@@ -23,6 +24,92 @@ export class ProductsService {
     @InjectRepository(Subcategory)
     private readonly subcategoryRepository: Repository<Subcategory>,
   ) {}
+
+  async searchForOrder(searchProductsDto: SearchProductsDto) {
+    const { query, page, limit } = searchProductsDto;
+
+    const normalizedQuery = query.trim();
+
+    if (normalizedQuery.length < 2) {
+      throw new BadRequestException(
+        'Search query must contain at least 2 characters',
+      );
+    }
+
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.productRepository
+      .createQueryBuilder('product')
+      .innerJoin('product.subcategory', 'subcategory')
+      .innerJoin('subcategory.category', 'category')
+      .where('product.name ILIKE :query', {
+        query: `%${normalizedQuery}%`,
+      })
+      .andWhere('product.isActive = true')
+      .andWhere('subcategory.isActive = true')
+      .andWhere('category.isActive = true');
+
+    const total = await queryBuilder.getCount();
+
+    type RawSearchProduct = {
+      id: string;
+      product_code: string;
+      name: string;
+      thumbnail_url: string | null;
+      price: string;
+      sale_price: string | null;
+      category_name: string;
+      subcategory_name: string;
+    };
+
+    const products = await queryBuilder
+      .clone()
+      .select('product.id', 'id')
+      .addSelect('product.productCode', 'product_code')
+      .addSelect('product.name', 'name')
+      .addSelect('product.thumbnailUrl', 'thumbnail_url')
+      .addSelect('product.price', 'price')
+      .addSelect('product.salePrice', 'sale_price')
+      .addSelect('category.name', 'category_name')
+      .addSelect('subcategory.name', 'subcategory_name')
+      .orderBy('product.isFeatured', 'DESC')
+      .addOrderBy('product.name', 'ASC')
+      .offset(skip)
+      .limit(limit)
+      .getRawMany<RawSearchProduct>();
+
+    return {
+      query: normalizedQuery,
+      page,
+      limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+
+      items: products.map((product) => {
+        const originalPrice = Number(product.price);
+
+        const salePrice =
+          product.sale_price !== null ? Number(product.sale_price) : null;
+
+        const hasDiscount = salePrice !== null && salePrice < originalPrice;
+
+        return {
+          id: product.id,
+          productCode: product.product_code,
+          name: product.name,
+          thumbnailUrl: product.thumbnail_url,
+
+          displayPrice: (hasDiscount ? salePrice : originalPrice).toFixed(2),
+
+          originalPrice: originalPrice.toFixed(2),
+          hasDiscount,
+          isAvailable: true,
+          categoryName: product.category_name,
+          subcategoryName: product.subcategory_name,
+        };
+      }),
+    };
+  }
 
   async createForSubcategory(
     subcategoryId: string,

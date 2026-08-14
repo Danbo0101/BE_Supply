@@ -17,49 +17,152 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const customer_entity_1 = require("./entities/customer.entity");
+const node_crypto_1 = require("node:crypto");
 let CustomersService = class CustomersService {
     customerRepository;
     constructor(customerRepository) {
         this.customerRepository = customerRepository;
     }
     async create(createCustomerDto) {
-        const existingCustomer = await this.findExistingCustomer(createCustomerDto.email, createCustomerDto.phone);
+        const email = this.normalizeEmail(createCustomerDto.email);
+        const phone = this.normalizePhone(createCustomerDto.phone);
+        const existingCustomer = await this.findExistingCustomer(email, phone);
         if (existingCustomer) {
-            throw new common_1.ConflictException('Customer already exists');
+            throw new common_1.ConflictException('Customer email or phone already exists');
         }
-        const customerCode = await this.generateCustomerCode();
+        const customerCode = this.generateCustomerCode();
         const customer = this.customerRepository.create({
             ...createCustomerDto,
-            customerCode,
-            email: createCustomerDto.email?.toLowerCase(),
-        });
-        return this.customerRepository.save(customer);
-    }
-    async findOrCreate(createCustomerDto, manager) {
-        const customerRepository = manager
-            ? manager.withRepository(this.customerRepository)
-            : this.customerRepository;
-        const email = createCustomerDto.email?.trim().toLowerCase();
-        const phone = createCustomerDto.phone?.trim();
-        const existingCustomer = await this.findExistingCustomer(email, phone, customerRepository);
-        if (existingCustomer) {
-            return existingCustomer;
-        }
-        const customerCode = await this.generateCustomerCode(customerRepository);
-        const customer = customerRepository.create({
-            ...createCustomerDto,
+            fullName: createCustomerDto.fullName.trim(),
+            defaultAddress: createCustomerDto.defaultAddress?.trim(),
             customerCode,
             email,
             phone,
         });
-        return customerRepository.save(customer);
+        try {
+            return await this.customerRepository.save(customer);
+        }
+        catch (error) {
+            if (this.isUniqueViolation(error)) {
+                throw new common_1.ConflictException('Customer email, phone or customer code already exists');
+            }
+            throw error;
+        }
     }
-    async findAll() {
-        return this.customerRepository.find({
-            order: {
-                createdAt: 'DESC',
-            },
+    async findOrCreate(createCustomerDto, manager) {
+        const customerRepository = manager
+            ? manager.getRepository(customer_entity_1.Customer)
+            : this.customerRepository;
+        const email = this.normalizeEmail(createCustomerDto.email);
+        const phone = this.normalizePhone(createCustomerDto.phone);
+        if (!email && !phone) {
+            throw new common_1.BadRequestException('Customer email or phone is required');
+        }
+        const customerByEmail = email
+            ? await customerRepository.findOne({
+                where: { email },
+            })
+            : null;
+        const customerByPhone = phone
+            ? await customerRepository.findOne({
+                where: { phone },
+            })
+            : null;
+        if (customerByEmail &&
+            customerByPhone &&
+            customerByEmail.id !== customerByPhone.id) {
+            throw new common_1.ConflictException('Customer email and phone belong to different customers');
+        }
+        const existingCustomer = customerByEmail ?? customerByPhone;
+        if (existingCustomer) {
+            const existingEmail = this.normalizeEmail(existingCustomer.email);
+            const existingPhone = this.normalizePhone(existingCustomer.phone);
+            if (email && existingEmail && email !== existingEmail) {
+                throw new common_1.ConflictException('Phone already belongs to a customer with another email');
+            }
+            if (phone && existingPhone && phone !== existingPhone) {
+                throw new common_1.ConflictException('Email already belongs to a customer with another phone');
+            }
+            let shouldSave = false;
+            if (!existingEmail && email) {
+                existingCustomer.email = email;
+                shouldSave = true;
+            }
+            if (!existingPhone && phone) {
+                existingCustomer.phone = phone;
+                shouldSave = true;
+            }
+            if (!shouldSave) {
+                return existingCustomer;
+            }
+            try {
+                return await customerRepository.save(existingCustomer);
+            }
+            catch (error) {
+                if (this.isUniqueViolation(error)) {
+                    throw new common_1.ConflictException('Customer email or phone already exists');
+                }
+                throw error;
+            }
+        }
+        const customerCode = this.generateCustomerCode();
+        const customer = customerRepository.create({
+            ...createCustomerDto,
+            fullName: createCustomerDto.fullName.trim(),
+            defaultAddress: createCustomerDto.defaultAddress?.trim(),
+            customerCode,
+            email,
+            phone,
         });
+        try {
+            return await customerRepository.save(customer);
+        }
+        catch (error) {
+            if (this.isUniqueViolation(error)) {
+                throw new common_1.ConflictException('Customer email, phone or customer code already exists');
+            }
+            throw error;
+        }
+    }
+    async findAll(findCustomersQueryDto) {
+        const { query, page = 1, limit = 20 } = findCustomersQueryDto;
+        const queryBuilder = this.customerRepository.createQueryBuilder('customer');
+        const searchValue = query?.trim();
+        if (searchValue) {
+            const keyword = `%${searchValue}%`;
+            const phoneDigits = searchValue.replace(/\D/g, '');
+            queryBuilder.andWhere(new typeorm_2.Brackets((qb) => {
+                qb.where('customer.fullName ILIKE :keyword', {
+                    keyword,
+                });
+                qb.orWhere('customer.email ILIKE :keyword', {
+                    keyword,
+                });
+                qb.orWhere('customer.customerCode ILIKE :keyword', {
+                    keyword,
+                });
+                if (phoneDigits) {
+                    qb.orWhere('customer.phone LIKE :phoneKeyword', {
+                        phoneKeyword: `%${phoneDigits}%`,
+                    });
+                }
+            }));
+        }
+        const skip = (page - 1) * limit;
+        const [items, total] = await queryBuilder
+            .orderBy('customer.createdAt', 'DESC')
+            .addOrderBy('customer.id', 'DESC')
+            .skip(skip)
+            .take(limit)
+            .getManyAndCount();
+        return {
+            query: searchValue || null,
+            page,
+            limit,
+            total,
+            totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+            items,
+        };
     }
     async findOne(id) {
         const customer = await this.customerRepository.findOne({
@@ -70,6 +173,50 @@ let CustomersService = class CustomersService {
         }
         return customer;
     }
+    async lookup(email, phone) {
+        const normalizedEmail = this.normalizeEmail(email);
+        const normalizedPhone = this.normalizePhone(phone);
+        if (!normalizedEmail && !normalizedPhone) {
+            throw new common_1.BadRequestException('Customer email or phone is required');
+        }
+        const customerByEmail = normalizedEmail
+            ? await this.customerRepository.findOne({
+                where: { email: normalizedEmail },
+            })
+            : null;
+        const customerByPhone = normalizedPhone
+            ? await this.customerRepository.findOne({
+                where: { phone: normalizedPhone },
+            })
+            : null;
+        if (customerByEmail &&
+            customerByPhone &&
+            customerByEmail.id !== customerByPhone.id) {
+            throw new common_1.ConflictException('Email and phone belong to different customers');
+        }
+        const customer = customerByEmail ?? customerByPhone;
+        if (!customer) {
+            return {
+                found: false,
+                matchedBy: null,
+                customer: null,
+            };
+        }
+        return {
+            found: true,
+            matchedBy: customerByEmail && customerByPhone
+                ? 'email_and_phone'
+                : customerByEmail
+                    ? 'email'
+                    : 'phone',
+            customer: {
+                fullName: customer.fullName,
+                email: customer.email,
+                phone: customer.phone,
+                defaultAddress: customer.defaultAddress,
+            },
+        };
+    }
     async update(id, updateCustomerDto) {
         const customer = await this.customerRepository.findOne({
             where: { id },
@@ -77,82 +224,100 @@ let CustomersService = class CustomersService {
         if (!customer) {
             throw new common_1.NotFoundException('Customer not found');
         }
-        if (updateCustomerDto.email !== undefined ||
-            updateCustomerDto.phone !== undefined) {
-            const existingCustomer = await this.findExistingCustomerExceptId(id, updateCustomerDto.email, updateCustomerDto.phone);
+        const email = updateCustomerDto.email !== undefined
+            ? this.normalizeEmail(updateCustomerDto.email)
+            : undefined;
+        const phone = updateCustomerDto.phone !== undefined
+            ? this.normalizePhone(updateCustomerDto.phone)
+            : undefined;
+        if (email !== undefined || phone !== undefined) {
+            const existingCustomer = await this.findExistingCustomerExceptId(id, email, phone);
             if (existingCustomer) {
                 throw new common_1.ConflictException('Customer email or phone already exists');
             }
         }
         if (updateCustomerDto.fullName !== undefined) {
-            customer.fullName = updateCustomerDto.fullName;
+            customer.fullName = updateCustomerDto.fullName.trim();
         }
-        if (updateCustomerDto.email !== undefined) {
-            customer.email = updateCustomerDto.email.toLowerCase();
+        if (email !== undefined) {
+            customer.email = email;
         }
-        if (updateCustomerDto.phone !== undefined) {
-            customer.phone = updateCustomerDto.phone;
+        if (phone !== undefined) {
+            customer.phone = phone;
         }
         if (updateCustomerDto.defaultAddress !== undefined) {
-            customer.defaultAddress = updateCustomerDto.defaultAddress;
+            customer.defaultAddress = updateCustomerDto.defaultAddress.trim();
         }
         if (updateCustomerDto.note !== undefined) {
-            customer.note = updateCustomerDto.note;
+            customer.note = updateCustomerDto.note.trim();
         }
-        return this.customerRepository.save(customer);
+        try {
+            return await this.customerRepository.save(customer);
+        }
+        catch (error) {
+            if (this.isUniqueViolation(error)) {
+                throw new common_1.ConflictException('Customer email or phone already exists');
+            }
+            throw error;
+        }
     }
     async findExistingCustomer(email, phone, customerRepository = this.customerRepository) {
-        if (!email && !phone) {
+        if (!email && !phone)
             return null;
-        }
-        const queryBuilder = customerRepository.createQueryBuilder('customer');
-        queryBuilder.where(new typeorm_2.Brackets((qb) => {
+        return customerRepository
+            .createQueryBuilder('customer')
+            .where(new typeorm_2.Brackets((qb) => {
             if (email) {
-                qb.orWhere('LOWER(customer.email) = :email', {
-                    email: email.trim().toLowerCase(),
-                });
+                qb.orWhere('customer.email = :email', { email });
             }
             if (phone) {
-                qb.orWhere('customer.phone = :phone', {
-                    phone: phone.trim(),
-                });
+                qb.orWhere('customer.phone = :phone', { phone });
             }
-        }));
-        return queryBuilder.getOne();
-    }
-    async generateCustomerCode(customerRepository = this.customerRepository) {
-        const latestCustomer = await customerRepository
-            .createQueryBuilder('customer')
-            .where('customer.customerCode LIKE :pattern', {
-            pattern: 'CUS-%',
-        })
-            .orderBy('customer.customerCode', 'DESC')
+        }))
             .getOne();
-        const latestNumber = latestCustomer?.customerCode
-            ? Number(latestCustomer.customerCode.split('-')[1])
-            : 0;
-        const nextNumber = latestNumber + 1;
-        return `CUS-${String(nextNumber).padStart(5, '0')}`;
+    }
+    generateCustomerCode() {
+        const randomPart = (0, node_crypto_1.randomUUID)()
+            .replace(/-/g, '')
+            .slice(0, 16)
+            .toUpperCase();
+        return `CUS-${randomPart}`;
     }
     async findExistingCustomerExceptId(id, email, phone, customerRepository = this.customerRepository) {
-        if (!email && !phone) {
+        if (!email && !phone)
             return null;
-        }
-        const queryBuilder = customerRepository.createQueryBuilder('customer');
-        queryBuilder.where('customer.id != :id', { id });
-        queryBuilder.andWhere(new typeorm_2.Brackets((qb) => {
+        return customerRepository
+            .createQueryBuilder('customer')
+            .where('customer.id != :id', { id })
+            .andWhere(new typeorm_2.Brackets((qb) => {
             if (email) {
-                qb.orWhere('LOWER(customer.email) = :email', {
-                    email: email.trim().toLowerCase(),
-                });
+                qb.orWhere('customer.email = :email', { email });
             }
             if (phone) {
-                qb.orWhere('customer.phone = :phone', {
-                    phone: phone.trim(),
-                });
+                qb.orWhere('customer.phone = :phone', { phone });
             }
-        }));
-        return queryBuilder.getOne();
+        }))
+            .getOne();
+    }
+    normalizeEmail(value) {
+        const email = value?.trim().toLowerCase();
+        return email || undefined;
+    }
+    normalizePhone(value) {
+        if (!value?.trim())
+            return undefined;
+        let digits = value.replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('1')) {
+            digits = digits.slice(1);
+        }
+        if (digits.length !== 10) {
+            throw new common_1.BadRequestException('Customer phone must contain exactly 10 digits');
+        }
+        return digits;
+    }
+    isUniqueViolation(error) {
+        return (error instanceof typeorm_2.QueryFailedError &&
+            error.driverError.code === '23505');
     }
 };
 exports.CustomersService = CustomersService;
