@@ -231,6 +231,8 @@ export declare class OrdersService {
             customerPhone: string | null;
             totalAmount: string;
             paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
+            paymentProofUrl: string | null;
+            submittedAt: Date | null;
             status: OrderStatus;
             statusAt: Date;
             itemCount: number;

@@ -504,6 +504,8 @@ let OrdersService = class OrdersService {
             .addSelect('orders.customerPhone', 'customer_phone')
             .addSelect('orders.totalAmount', 'total_amount')
             .addSelect('orders.paymentMethod', 'payment_method')
+            .addSelect('orders.paymentProofUrl', 'payment_proof_url')
+            .addSelect('orders.submittedAt', 'submitted_at')
             .addSelect('orders.status', 'status')
             .addSelect(calendarDateExpression, 'status_at')
             .addSelect('COUNT(items.id)', 'item_count')
@@ -539,6 +541,8 @@ let OrdersService = class OrdersService {
                 customerPhone: order.customer_phone,
                 totalAmount: order.total_amount,
                 paymentMethod: order.payment_method,
+                paymentProofUrl: order.payment_proof_url ?? null,
+                submittedAt: order.submitted_at ?? null,
                 status: order.status,
                 statusAt: order.status_at,
                 itemCount: Number(order.item_count),

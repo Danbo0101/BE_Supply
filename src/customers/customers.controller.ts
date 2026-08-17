@@ -32,7 +32,6 @@ export class CustomersController {
   }
 
   @Get(':customerId/orders')
-  @UseGuards(JwtAuthGuard)
   findOrders(
     @Param('customerId', new ParseUUIDPipe({ version: '4' }))
     customerId: string,

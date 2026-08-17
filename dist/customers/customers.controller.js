@@ -62,7 +62,6 @@ __decorate([
 ], CustomersController.prototype, "lookup", null);
 __decorate([
     (0, common_1.Get)(':customerId/orders'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('customerId', new common_1.ParseUUIDPipe({ version: '4' }))),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),

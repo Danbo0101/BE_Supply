@@ -730,6 +730,8 @@ export class OrdersService {
       customer_phone: string | null;
       total_amount: string;
       payment_method: Order['paymentMethod'];
+      payment_proof_url: string | null;
+      submitted_at: Date | null;
       status: OrderStatus;
       status_at: Date;
       item_count: string;
@@ -745,6 +747,8 @@ export class OrdersService {
       .addSelect('orders.customerPhone', 'customer_phone')
       .addSelect('orders.totalAmount', 'total_amount')
       .addSelect('orders.paymentMethod', 'payment_method')
+      .addSelect('orders.paymentProofUrl', 'payment_proof_url')
+      .addSelect('orders.submittedAt', 'submitted_at')
       .addSelect('orders.status', 'status')
       .addSelect(calendarDateExpression, 'status_at')
       .addSelect('COUNT(items.id)', 'item_count')
@@ -788,6 +792,8 @@ export class OrdersService {
         customerPhone: order.customer_phone,
         totalAmount: order.total_amount,
         paymentMethod: order.payment_method,
+        paymentProofUrl: order.payment_proof_url ?? null,
+        submittedAt: order.submitted_at ?? null,
         status: order.status,
         statusAt: order.status_at,
         itemCount: Number(order.item_count),
