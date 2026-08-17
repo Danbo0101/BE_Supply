@@ -4,9 +4,12 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Customer } from './entities/customer.entity';
 import { EntityManager } from 'typeorm';
 import { FindCustomersQueryDto } from './dto/find-customers-query.dto';
+import { Order } from '../orders/entities/order.entity';
+import { FindCustomerOrdersQueryDto } from './dto/find-customer-orders-query.dto';
 export declare class CustomersService {
     private readonly customerRepository;
-    constructor(customerRepository: Repository<Customer>);
+    private readonly orderRepository;
+    constructor(customerRepository: Repository<Customer>, orderRepository: Repository<Order>);
     create(createCustomerDto: CreateCustomerDto): Promise<Customer>;
     findOrCreate(createCustomerDto: CreateCustomerDto, manager?: EntityManager): Promise<Customer>;
     findAll(findCustomersQueryDto: FindCustomersQueryDto): Promise<{
@@ -31,6 +34,22 @@ export declare class CustomersService {
             phone: string | undefined;
             defaultAddress: string | undefined;
         };
+    }>;
+    findOrders(customerId: string, queryDto: FindCustomerOrdersQueryDto): Promise<{
+        customerId: string;
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        items: {
+            id: string;
+            orderCode: string;
+            totalAmount: string;
+            paymentMethod: import("../payment-settings/enums/payment-method.enum").PaymentMethod;
+            paymentProofUrl: string | null;
+            status: import("../orders/enums/order-status.enum").OrderStatus;
+            submittedAt: Date | null;
+        }[];
     }>;
     update(id: string, updateCustomerDto: UpdateCustomerDto): Promise<Customer>;
     private findExistingCustomer;

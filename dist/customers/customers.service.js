@@ -18,10 +18,13 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const customer_entity_1 = require("./entities/customer.entity");
 const node_crypto_1 = require("node:crypto");
+const order_entity_1 = require("../orders/entities/order.entity");
 let CustomersService = class CustomersService {
     customerRepository;
-    constructor(customerRepository) {
+    orderRepository;
+    constructor(customerRepository, orderRepository) {
         this.customerRepository = customerRepository;
+        this.orderRepository = orderRepository;
     }
     async create(createCustomerDto) {
         const email = this.normalizeEmail(createCustomerDto.email);
@@ -217,6 +220,53 @@ let CustomersService = class CustomersService {
             },
         };
     }
+    async findOrders(customerId, queryDto) {
+        const { page = 1, limit = 10 } = queryDto;
+        const customerExists = await this.customerRepository.exists({
+            where: {
+                id: customerId,
+            },
+        });
+        if (!customerExists) {
+            throw new common_1.NotFoundException('Customer not found');
+        }
+        const skip = (page - 1) * limit;
+        const [orders, total] = await this.orderRepository.findAndCount({
+            where: {
+                customerId,
+            },
+            select: {
+                id: true,
+                orderCode: true,
+                totalAmount: true,
+                paymentMethod: true,
+                paymentProofUrl: true,
+                status: true,
+                submittedAt: true,
+            },
+            order: {
+                createdAt: 'DESC',
+            },
+            skip,
+            take: limit,
+        });
+        return {
+            customerId,
+            page,
+            limit,
+            total,
+            totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+            items: orders.map((order) => ({
+                id: order.id,
+                orderCode: order.orderCode,
+                totalAmount: order.totalAmount,
+                paymentMethod: order.paymentMethod,
+                paymentProofUrl: order.paymentProofUrl ?? null,
+                status: order.status,
+                submittedAt: order.submittedAt ?? null,
+            })),
+        };
+    }
     async update(id, updateCustomerDto) {
         const customer = await this.customerRepository.findOne({
             where: { id },
@@ -324,6 +374,8 @@ exports.CustomersService = CustomersService;
 exports.CustomersService = CustomersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(customer_entity_1.Customer)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(order_entity_1.Order)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], CustomersService);
 //# sourceMappingURL=customers.service.js.map

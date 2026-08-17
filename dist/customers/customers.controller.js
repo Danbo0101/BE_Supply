@@ -19,6 +19,7 @@ const update_customer_dto_1 = require("./dto/update-customer.dto");
 const create_customer_dto_1 = require("./dto/create-customer.dto");
 const customers_service_1 = require("./customers.service");
 const find_customers_query_dto_1 = require("./dto/find-customers-query.dto");
+const find_customer_orders_query_dto_1 = require("./dto/find-customer-orders-query.dto");
 let CustomersController = class CustomersController {
     customersService;
     constructor(customersService) {
@@ -29,6 +30,9 @@ let CustomersController = class CustomersController {
     }
     lookup(email, phone) {
         return this.customersService.lookup(email, phone);
+    }
+    findOrders(customerId, queryDto) {
+        return this.customersService.findOrders(customerId, queryDto);
     }
     findAll(query) {
         return this.customersService.findAll(query);
@@ -56,6 +60,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], CustomersController.prototype, "lookup", null);
+__decorate([
+    (0, common_1.Get)(':customerId/orders'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Param)('customerId', new common_1.ParseUUIDPipe({ version: '4' }))),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, find_customer_orders_query_dto_1.FindCustomerOrdersQueryDto]),
+    __metadata("design:returntype", void 0)
+], CustomersController.prototype, "findOrders", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),

@@ -12,12 +12,17 @@ import { Customer } from './entities/customer.entity';
 import { EntityManager } from 'typeorm';
 import { FindCustomersQueryDto } from './dto/find-customers-query.dto';
 import { randomUUID } from 'node:crypto';
+import { Order } from '../orders/entities/order.entity';
+import { FindCustomerOrdersQueryDto } from './dto/find-customer-orders-query.dto';
 
 @Injectable()
 export class CustomersService {
   constructor(
     @InjectRepository(Customer)
     private readonly customerRepository: Repository<Customer>,
+
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
   ) {}
 
   async create(createCustomerDto: CreateCustomerDto) {
@@ -283,6 +288,64 @@ export class CustomersService {
         phone: customer.phone,
         defaultAddress: customer.defaultAddress,
       },
+    };
+  }
+
+  async findOrders(customerId: string, queryDto: FindCustomerOrdersQueryDto) {
+    const { page = 1, limit = 10 } = queryDto;
+
+    const customerExists = await this.customerRepository.exists({
+      where: {
+        id: customerId,
+      },
+    });
+
+    if (!customerExists) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [orders, total] = await this.orderRepository.findAndCount({
+      where: {
+        customerId,
+      },
+
+      select: {
+        id: true,
+        orderCode: true,
+        totalAmount: true,
+        paymentMethod: true,
+        paymentProofUrl: true,
+        status: true,
+        submittedAt: true,
+      },
+
+      // Sắp xếp theo đơn mới nhất nhưng không trả createdAt.
+      order: {
+        createdAt: 'DESC',
+      },
+
+      skip,
+      take: limit,
+    });
+
+    return {
+      customerId,
+      page,
+      limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+
+      items: orders.map((order) => ({
+        id: order.id,
+        orderCode: order.orderCode,
+        totalAmount: order.totalAmount,
+        paymentMethod: order.paymentMethod,
+        paymentProofUrl: order.paymentProofUrl ?? null,
+        status: order.status,
+        submittedAt: order.submittedAt ?? null,
+      })),
     };
   }
 

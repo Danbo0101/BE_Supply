@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -13,6 +14,7 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomersService } from './customers.service';
 import { FindCustomersQueryDto } from './dto/find-customers-query.dto';
+import { FindCustomerOrdersQueryDto } from './dto/find-customer-orders-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('customers')
@@ -27,6 +29,18 @@ export class CustomersController {
   @Get('lookup')
   lookup(@Query('email') email?: string, @Query('phone') phone?: string) {
     return this.customersService.lookup(email, phone);
+  }
+
+  @Get(':customerId/orders')
+  @UseGuards(JwtAuthGuard)
+  findOrders(
+    @Param('customerId', new ParseUUIDPipe({ version: '4' }))
+    customerId: string,
+
+    @Query()
+    queryDto: FindCustomerOrdersQueryDto,
+  ) {
+    return this.customersService.findOrders(customerId, queryDto);
   }
 
   @Get()
