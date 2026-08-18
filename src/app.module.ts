@@ -15,6 +15,7 @@ import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AuthModule } from './auth/auth.module';
 import { IANAZone } from 'luxon';
 import { BusinessTimeModule } from './common/time/business-time.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -67,6 +68,8 @@ import { BusinessTimeModule } from './common/time/business-time.module';
     AuthModule,
 
     BusinessTimeModule,
+
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,48 +1,73 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Not, Repository } from 'typeorm';
+import { Not, QueryFailedError, Repository } from 'typeorm';
+
+import { ChangeAdminPasswordDto } from './dto/change-admin-password.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { ResetAdminPasswordDto } from './dto/reset-admin-password.dto';
+import { UpdateAdminUserProfileDto } from './dto/update-admin-user-profile.dto';
+import { UpdateAdminUserRoleDto } from './dto/update-admin-user-role.dto';
 import { UpdateAdminUserStatusDto } from './dto/update-admin-user-status.dto';
-import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 import { AdminUser } from './entities/admin-user.entity';
 import { AdminRole } from './enums/admin-role.enum';
 
 @Injectable()
 export class AdminUsersService {
+  private readonly passwordSaltRounds = 10;
+
   constructor(
     @InjectRepository(AdminUser)
     private readonly adminUserRepository: Repository<AdminUser>,
   ) {}
 
   async create(createAdminUserDto: CreateAdminUserDto) {
-    const email = createAdminUserDto.email.toLowerCase();
+    const email = this.normalizeEmail(createAdminUserDto.email);
+
+    const fullName = this.normalizeFullName(createAdminUserDto.fullName);
 
     const existingAdminUser = await this.adminUserRepository.findOne({
-      where: { email },
+      where: {
+        email,
+      },
     });
 
     if (existingAdminUser) {
       throw new ConflictException('Admin user email already exists');
     }
 
-    const passwordHash = await bcrypt.hash(createAdminUserDto.password, 10);
+    const passwordHash = await bcrypt.hash(
+      createAdminUserDto.password,
+      this.passwordSaltRounds,
+    );
 
     const adminUser = this.adminUserRepository.create({
-      fullName: createAdminUserDto.fullName,
+      fullName,
       email,
       passwordHash,
       role: createAdminUserDto.role ?? AdminRole.ADMIN,
       isActive: true,
+      refreshTokenHash: null,
+      refreshTokenExpiresAt: null,
     });
 
-    const savedAdminUser = await this.adminUserRepository.save(adminUser);
+    try {
+      const savedAdminUser = await this.adminUserRepository.save(adminUser);
 
-    return this.toAdminUserResponse(savedAdminUser);
+      return this.toAdminUserResponse(savedAdminUser);
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException('Admin user email already exists');
+      }
+
+      throw error;
+    }
   }
 
   async findAll() {
@@ -57,7 +82,9 @@ export class AdminUsersService {
 
   async findOne(id: string) {
     const adminUser = await this.adminUserRepository.findOne({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
     if (!adminUser) {
@@ -67,25 +94,42 @@ export class AdminUsersService {
     return this.toAdminUserResponse(adminUser);
   }
 
+  /**
+   * Dùng nội bộ cho AuthService khi đăng nhập.
+   * Phải lấy passwordHash kể cả khi entity để select: false.
+   */
   async findByEmail(email: string) {
-    return this.adminUserRepository.findOne({
-      where: {
-        email: email.toLowerCase(),
-      },
-    });
+    const normalizedEmail = this.normalizeEmail(email);
+
+    return this.adminUserRepository
+      .createQueryBuilder('adminUser')
+      .addSelect('adminUser.passwordHash')
+      .addSelect('adminUser.refreshTokenHash')
+      .addSelect('adminUser.refreshTokenExpiresAt')
+      .where('adminUser.email = :email', {
+        email: normalizedEmail,
+      })
+      .getOne();
   }
 
-  async update(id: string, updateAdminUserDto: UpdateAdminUserDto) {
+  /**
+   * Chỉ cập nhật fullName và email.
+   */
+  async updateProfile(id: string, dto: UpdateAdminUserProfileDto) {
     const adminUser = await this.adminUserRepository.findOne({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
     if (!adminUser) {
       throw new NotFoundException('Admin user not found');
     }
 
-    if (updateAdminUserDto.email !== undefined) {
-      const email = updateAdminUserDto.email.toLowerCase();
+    let emailChanged = false;
+
+    if (dto.email !== undefined) {
+      const email = this.normalizeEmail(dto.email);
 
       const existingAdminUser = await this.adminUserRepository.findOne({
         where: {
@@ -98,22 +142,168 @@ export class AdminUsersService {
         throw new ConflictException('Admin user email already exists');
       }
 
-      adminUser.email = email;
+      if (email !== adminUser.email) {
+        adminUser.email = email;
+        emailChanged = true;
+      }
     }
 
-    if (updateAdminUserDto.fullName !== undefined) {
-      adminUser.fullName = updateAdminUserDto.fullName;
+    if (dto.fullName !== undefined) {
+      adminUser.fullName = this.normalizeFullName(dto.fullName);
     }
 
-    if (updateAdminUserDto.password !== undefined) {
-      adminUser.passwordHash = await bcrypt.hash(
-        updateAdminUserDto.password,
-        10,
+    // Đổi email là thay đổi thông tin đăng nhập.
+    if (emailChanged) {
+      adminUser.refreshTokenHash = null;
+      adminUser.refreshTokenExpiresAt = null;
+    }
+
+    try {
+      const savedAdminUser = await this.adminUserRepository.save(adminUser);
+
+      return this.toAdminUserResponse(savedAdminUser);
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException('Admin user email already exists');
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Admin đang đăng nhập tự đổi password.
+   */
+  async changePassword(id: string, dto: ChangeAdminPasswordDto) {
+    const adminUser = await this.findRawById(id);
+
+    if (!adminUser) {
+      throw new NotFoundException('Admin user not found');
+    }
+
+    if (!adminUser.isActive) {
+      throw new BadRequestException(
+        'Inactive admin user cannot change password',
       );
     }
 
-    if (updateAdminUserDto.role !== undefined) {
-      adminUser.role = updateAdminUserDto.role;
+    const currentPasswordMatches = await bcrypt.compare(
+      dto.currentPassword,
+      adminUser.passwordHash,
+    );
+
+    if (!currentPasswordMatches) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const newPasswordMatchesCurrent = await bcrypt.compare(
+      dto.newPassword,
+      adminUser.passwordHash,
+    );
+
+    if (newPasswordMatchesCurrent) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
+    }
+
+    adminUser.passwordHash = await bcrypt.hash(
+      dto.newPassword,
+      this.passwordSaltRounds,
+    );
+
+    // Thu hồi refresh token hiện tại.
+    adminUser.refreshTokenHash = null;
+    adminUser.refreshTokenExpiresAt = null;
+
+    await this.adminUserRepository.save(adminUser);
+
+    return {
+      message: 'Password changed successfully',
+    };
+  }
+
+  /**
+   * Owner/Super Admin reset password cho admin khác.
+   * Quyền gọi API phải được kiểm tra tại Guard/Controller.
+   */
+  async resetPassword(id: string, dto: ResetAdminPasswordDto) {
+    const adminUser = await this.adminUserRepository.findOne({
+      where: {
+        id,
+      },
+    });
+
+    if (!adminUser) {
+      throw new NotFoundException('Admin user not found');
+    }
+
+    adminUser.passwordHash = await bcrypt.hash(
+      dto.newPassword,
+      this.passwordSaltRounds,
+    );
+
+    adminUser.refreshTokenHash = null;
+    adminUser.refreshTokenExpiresAt = null;
+
+    const savedAdminUser = await this.adminUserRepository.save(adminUser);
+
+    return {
+      message: 'Admin password reset successfully',
+
+      adminUser: this.toAdminUserResponse(savedAdminUser),
+    };
+  }
+
+  /**
+   * Đổi role riêng.
+   * Controller phải giới hạn cho role có thẩm quyền.
+   */
+  async updateRole(id: string, dto: UpdateAdminUserRoleDto) {
+    const adminUser = await this.adminUserRepository.findOne({
+      where: {
+        id,
+      },
+    });
+
+    if (!adminUser) {
+      throw new NotFoundException('Admin user not found');
+    }
+
+    if (adminUser.role === dto.role) {
+      return this.toAdminUserResponse(adminUser);
+    }
+
+    adminUser.role = dto.role;
+
+    // Role đã thay đổi, thu hồi phiên đăng nhập cũ.
+    adminUser.refreshTokenHash = null;
+    adminUser.refreshTokenExpiresAt = null;
+
+    const savedAdminUser = await this.adminUserRepository.save(adminUser);
+
+    return this.toAdminUserResponse(savedAdminUser);
+  }
+
+  /**
+   * Bật hoặc tắt tài khoản.
+   */
+  async updateStatus(id: string, dto: UpdateAdminUserStatusDto) {
+    const adminUser = await this.adminUserRepository.findOne({
+      where: {
+        id,
+      },
+    });
+
+    if (!adminUser) {
+      throw new NotFoundException('Admin user not found');
+    }
+
+    adminUser.isActive = dto.isActive;
+
+    if (!adminUser.isActive) {
+      adminUser.refreshTokenHash = null;
+      adminUser.refreshTokenExpiresAt = null;
     }
 
     const savedAdminUser = await this.adminUserRepository.save(adminUser);
@@ -121,23 +311,40 @@ export class AdminUsersService {
     return this.toAdminUserResponse(savedAdminUser);
   }
 
-  async updateStatus(
+  /**
+   * Dùng nội bộ cho AuthService.
+   */
+  async findRawById(id: string) {
+    return this.adminUserRepository
+      .createQueryBuilder('adminUser')
+      .addSelect('adminUser.passwordHash')
+      .addSelect('adminUser.refreshTokenHash')
+      .addSelect('adminUser.refreshTokenExpiresAt')
+      .where('adminUser.id = :id', {
+        id,
+      })
+      .getOne();
+  }
+
+  /**
+   * Dùng khi tạo hoặc thu hồi refresh token.
+   */
+  async updateRefreshToken(
     id: string,
-    updateAdminUserStatusDto: UpdateAdminUserStatusDto,
+    refreshTokenHash: string | null,
+    refreshTokenExpiresAt: Date | null,
   ) {
-    const adminUser = await this.adminUserRepository.findOne({
-      where: { id },
-    });
-
-    if (!adminUser) {
-      throw new NotFoundException('Admin user not found');
-    }
-
-    adminUser.isActive = updateAdminUserStatusDto.isActive;
-
-    const savedAdminUser = await this.adminUserRepository.save(adminUser);
-
-    return this.toAdminUserResponse(savedAdminUser);
+    await this.adminUserRepository
+      .createQueryBuilder()
+      .update(AdminUser)
+      .set({
+        refreshTokenHash,
+        refreshTokenExpiresAt,
+      })
+      .where('id = :id', {
+        id,
+      })
+      .execute();
   }
 
   toAdminUserResponse(adminUser: AdminUser) {
@@ -152,25 +359,34 @@ export class AdminUsersService {
     };
   }
 
-  async findRawById(id: string) {
-    return this.adminUserRepository.findOne({
-      where: { id },
-    });
+  private normalizeEmail(value: string): string {
+    const email = value.trim().toLowerCase();
+
+    if (!email) {
+      throw new BadRequestException('Admin user email is required');
+    }
+
+    return email;
   }
 
-  async updateRefreshToken(
-    id: string,
-    refreshTokenHash: string | null,
-    refreshTokenExpiresAt: Date | null,
-  ) {
-    await this.adminUserRepository
-      .createQueryBuilder()
-      .update(AdminUser)
-      .set({
-        refreshTokenHash,
-        refreshTokenExpiresAt,
-      })
-      .where('id = :id', { id })
-      .execute();
+  private normalizeFullName(value: string): string {
+    const fullName = value.trim();
+
+    if (!fullName) {
+      throw new BadRequestException('Admin user full name is required');
+    }
+
+    return fullName;
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      error instanceof QueryFailedError &&
+      (
+        error.driverError as {
+          code?: string;
+        }
+      ).code === '23505'
+    );
   }
 }

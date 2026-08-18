@@ -77,6 +77,7 @@ __decorate([
 __decorate([
     (0, typeorm_1.CreateDateColumn)({
         name: 'created_at',
+        type: 'timestamptz',
     }),
     __metadata("design:type", Date)
 ], Customer.prototype, "createdAt", void 0);

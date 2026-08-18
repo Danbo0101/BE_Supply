@@ -24,6 +24,7 @@ const admin_users_module_1 = require("./admin-users/admin-users.module");
 const auth_module_1 = require("./auth/auth.module");
 const luxon_1 = require("luxon");
 const business_time_module_1 = require("./common/time/business-time.module");
+const dashboard_module_1 = require("./dashboard/dashboard.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -64,6 +65,7 @@ exports.AppModule = AppModule = __decorate([
             admin_users_module_1.AdminUsersModule,
             auth_module_1.AuthModule,
             business_time_module_1.BusinessTimeModule,
+            dashboard_module_1.DashboardModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

@@ -6,16 +6,20 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { SignOptions } from 'jsonwebtoken';
 import { AdminUsersService } from '../admin-users/admin-users.service';
 import { AdminUser } from '../admin-users/entities/admin-user.entity';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { SignOptions } from 'jsonwebtoken';
 
 type TokenPayload = {
   sub: string;
   email: string;
   role: string;
+};
+
+type DecodedToken = {
+  exp?: number;
 };
 
 @Injectable()
@@ -27,9 +31,9 @@ export class AuthService {
   ) {}
 
   async adminLogin(adminLoginDto: AdminLoginDto) {
-    const adminUser = await this.adminUsersService.findByEmail(
-      adminLoginDto.email,
-    );
+    const email = adminLoginDto.email.trim().toLowerCase();
+
+    const adminUser = await this.adminUsersService.findByEmail(email);
 
     if (!adminUser) {
       throw new UnauthorizedException('Invalid email or password');
@@ -66,63 +70,83 @@ export class AuthService {
   }
 
   async refresh(refreshTokenDto: RefreshTokenDto) {
-    if (!refreshTokenDto.refreshToken) {
+    const refreshToken = refreshTokenDto.refreshToken?.trim();
+
+    if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
+
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+
+    if (!refreshSecret) {
+      throw new InternalServerErrorException(
+        'JWT refresh secret is not configured',
+      );
+    }
+
+    let payload: TokenPayload;
+
     try {
-      const payload = await this.jwtService.verifyAsync<TokenPayload>(
-        refreshTokenDto.refreshToken,
-        {
-          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        },
-      );
-
-      const adminUser = await this.adminUsersService.findRawById(payload.sub);
-
-      if (!adminUser || !adminUser.isActive || !adminUser.refreshTokenHash) {
-        throw new UnauthorizedException('Unauthorized');
-      }
-
-      if (
-        adminUser.refreshTokenExpiresAt &&
-        adminUser.refreshTokenExpiresAt.getTime() < Date.now()
-      ) {
-        await this.adminUsersService.updateRefreshToken(
-          adminUser.id,
-          null,
-          null,
-        );
-
-        throw new UnauthorizedException('Refresh token expired');
-      }
-
-      const isRefreshTokenValid = await bcrypt.compare(
-        refreshTokenDto.refreshToken,
-        adminUser.refreshTokenHash,
-      );
-
-      if (!isRefreshTokenValid) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-
-      const tokens = await this.generateTokens(adminUser);
-
-      await this.saveRefreshToken(
-        adminUser.id,
-        tokens.refreshToken,
-        tokens.refreshTokenExpiresAt,
-      );
-
-      return {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        accessTokenExpiresAt: tokens.accessTokenExpiresAt,
-        refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
-        adminUser: this.adminUsersService.toAdminUserResponse(adminUser),
-      };
+      payload = await this.jwtService.verifyAsync<TokenPayload>(refreshToken, {
+        secret: refreshSecret,
+      });
     } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (!payload.sub) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+
+    const adminUser = await this.adminUsersService.findRawById(payload.sub);
+
+    if (!adminUser) {
+      throw new UnauthorizedException('Admin user not found');
+    }
+
+    if (!adminUser.isActive) {
+      throw new UnauthorizedException('Admin user is inactive');
+    }
+
+    if (!adminUser.refreshTokenHash) {
+      throw new UnauthorizedException('Refresh token has been revoked');
+    }
+
+    if (
+      !adminUser.refreshTokenExpiresAt ||
+      adminUser.refreshTokenExpiresAt.getTime() <= Date.now()
+    ) {
+      await this.adminUsersService.updateRefreshToken(adminUser.id, null, null);
+
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      adminUser.refreshTokenHash,
+    );
+
+    if (!isRefreshTokenValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Refresh-token rotation:
+    // tạo cặp token mới và thay refresh token cũ trong database.
+    const tokens = await this.generateTokens(adminUser);
+
+    await this.saveRefreshToken(
+      adminUser.id,
+      tokens.refreshToken,
+      tokens.refreshTokenExpiresAt,
+    );
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      accessTokenExpiresAt: tokens.accessTokenExpiresAt,
+      refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
+      adminUser: this.adminUsersService.toAdminUserResponse(adminUser),
+    };
   }
 
   async logout(adminUser: AdminUser) {
@@ -134,7 +158,8 @@ export class AuthService {
   }
 
   async getAdminProfile(adminUser: AdminUser) {
-    return this.adminUsersService.toAdminUserResponse(adminUser);
+    // Lấy lại từ database để profile, role và isActive luôn là dữ liệu mới.
+    return this.adminUsersService.findOne(adminUser.id);
   }
 
   private async saveRefreshToken(
@@ -153,6 +178,7 @@ export class AuthService {
 
   private async generateTokens(adminUser: AdminUser) {
     const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET');
+
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
 
     if (!accessSecret || !refreshSecret) {
@@ -184,32 +210,20 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      accessTokenExpiresAt: this.getExpiresAt(accessTokenExpiresIn),
-      refreshTokenExpiresAt: this.getExpiresAt(refreshTokenExpiresIn),
+      accessTokenExpiresAt: this.getTokenExpiresAt(accessToken),
+      refreshTokenExpiresAt: this.getTokenExpiresAt(refreshToken),
     };
   }
 
-  private getExpiresAt(expiresIn: string) {
-    const value = Number.parseInt(expiresIn, 10);
-    const unit = expiresIn.replace(String(value), '');
+  private getTokenExpiresAt(token: string) {
+    const decodedToken = this.jwtService.decode<DecodedToken>(token);
 
-    const now = Date.now();
-
-    switch (unit) {
-      case 's':
-        return new Date(now + value * 1000);
-
-      case 'm':
-        return new Date(now + value * 60 * 1000);
-
-      case 'h':
-        return new Date(now + value * 60 * 60 * 1000);
-
-      case 'd':
-        return new Date(now + value * 24 * 60 * 60 * 1000);
-
-      default:
-        return new Date(now + value * 1000);
+    if (!decodedToken?.exp) {
+      throw new InternalServerErrorException(
+        'Unable to determine token expiration',
+      );
     }
+
+    return new Date(decodedToken.exp * 1000);
   }
 }
